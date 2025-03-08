@@ -12,6 +12,13 @@
     "resolveJsonModule": true,
     "declaration": true,
     "sourceMap": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "allowSyntheticDefaultImports": true,
     "types": ["node", "jest"]
   },
   "include": ["src/**/*"],
