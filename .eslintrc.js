@@ -7,11 +7,7 @@ module.exports = {
     sourceType: 'module',
   },
   plugins: ['@typescript-eslint', 'prettier'],
-  extends: [
-    'eslint:recommended',
-    'plugin:@typescript-eslint/recommended',
-    'prettier'
-  ],
+  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
   env: {
     node: true,
     es2022: true,
@@ -27,7 +23,7 @@ module.exports = {
       {
         argsIgnorePattern: '^_|next',
         varsIgnorePattern: '^_',
-        caughtErrorsIgnorePattern: '^_'
+        caughtErrorsIgnorePattern: '^_',
       },
     ],
     '@typescript-eslint/explicit-function-return-type': 'off',
