@@ -47,7 +47,9 @@ export async function getWalletBalance(client: LndClient): Promise<WalletBalance
     logger.debug({ balance: response }, 'Retrieved wallet balance');
     return response;
   } catch (error) {
-    logger.error({ error }, 'Failed to get wallet balance');
+    logger.error(
+      `Failed to get wallet balance: ${error instanceof Error ? error.message : String(error)}`
+    );
     throw new Error(
       `Failed to get wallet balance: ${error instanceof Error ? error.message : String(error)}`
     );
@@ -79,7 +81,9 @@ export async function getChannelBalance(client: LndClient): Promise<ChannelBalan
     logger.debug({ balance: response }, 'Retrieved channel balance');
     return response;
   } catch (error) {
-    logger.error({ error }, 'Failed to get channel balance');
+    logger.error(
+      `Failed to get channel balance: ${error instanceof Error ? error.message : String(error)}`
+    );
     throw new Error(
       `Failed to get channel balance: ${error instanceof Error ? error.message : String(error)}`
     );
@@ -113,7 +117,9 @@ export async function getAllBalances(client: LndClient): Promise<AllBalancesResp
     logger.debug({ balance: response }, 'Retrieved all balances');
     return response;
   } catch (error) {
-    logger.error({ error }, 'Failed to get all balances');
+    logger.error(
+      `Failed to get all balances: ${error instanceof Error ? error.message : String(error)}`
+    );
     throw new Error(
       `Failed to get all balances: ${error instanceof Error ? error.message : String(error)}`
     );
@@ -173,7 +179,9 @@ export async function getNodeData(client: LndClient): Promise<NodeData> {
     logger.debug({ nodeData }, 'Retrieved node data');
     return nodeData;
   } catch (error) {
-    logger.error({ error }, 'Failed to get node data');
+    logger.error(
+      `Failed to get node data: ${error instanceof Error ? error.message : String(error)}`
+    );
     throw new Error(
       `Failed to get node data: ${error instanceof Error ? error.message : String(error)}`
     );

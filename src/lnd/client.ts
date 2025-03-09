@@ -57,7 +57,9 @@ export class LndClient {
       logger.info(`Creating LND connection to ${socket}`);
       return lnService.authenticatedLndGrpc(auth);
     } catch (error) {
-      logger.fatal({ error }, 'Failed to create LND connection');
+      logger.fatal(
+        `Failed to create LND connection: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw new Error(
         `LND connection error: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -84,7 +86,9 @@ export class LndClient {
       logger.info('LND connection successful');
       return true;
     } catch (error) {
-      logger.error({ error }, 'LND connection check failed');
+      logger.error(
+        `LND connection check failed: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw new Error(
         `LND connection check failed: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -100,7 +104,9 @@ export class LndClient {
     try {
       logger.info('LND connection closed');
     } catch (error) {
-      logger.error({ error }, 'Error closing LND connection');
+      logger.error(
+        `Error closing LND connection: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }

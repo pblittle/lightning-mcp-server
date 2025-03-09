@@ -66,7 +66,9 @@ export function getConfig(): Config {
     logger.info('Configuration loaded successfully');
     return config;
   } catch (error) {
-    logger.fatal({ error }, 'Failed to load configuration');
+    logger.fatal(
+      `Failed to load configuration: ${error instanceof Error ? error.message : String(error)}`
+    );
     throw error;
   }
 }

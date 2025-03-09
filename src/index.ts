@@ -16,7 +16,9 @@ async function main() {
 
     logger.info('MCP-LND server started');
   } catch (error) {
-    logger.fatal({ error }, 'Failed to start application');
+    logger.fatal(
+      `Failed to start application: ${error instanceof Error ? error.message : String(error)}`
+    );
     process.exit(1);
   }
 }
