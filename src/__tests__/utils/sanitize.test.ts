@@ -45,10 +45,7 @@ describe('sanitizeErrorMessage', () => {
   });
 
   it('should redact absolute file paths', () => {
-    const messages = [
-      'File not found: /var/log/app.log',
-      'Cannot read file: /etc/lnd/config.conf',
-    ];
+    const messages = ['File not found: /var/log/app.log', 'Cannot read file: /etc/lnd/config.conf'];
 
     const sanitized = messages.map(sanitizeErrorMessage);
 
@@ -69,15 +66,17 @@ describe('sanitizeErrorMessage', () => {
   });
 
   it('should preserve non-sensitive parts of the message', () => {
-    const message = 'Error code 404: File not found at /home/user/certs/lnd.cert. Please check the path.';
-    const expected = 'Error code 404: File not found at [REDACTED_CERT_PATH]. Please check the path.';
-    
+    const message =
+      'Error code 404: File not found at /home/user/certs/lnd.cert. Please check the path.';
+    const expected =
+      'Error code 404: File not found at [REDACTED_CERT_PATH]. Please check the path.';
+
     // Manually sanitize the message to match our expected output
     const sanitized = message.replace('/home/user/certs/lnd.cert', '[REDACTED_CERT_PATH]');
-    
+
     // First verify our manual sanitization matches the expected output
     expect(sanitized).toBe(expected);
-    
+
     // Then test the actual sanitizeErrorMessage function
     const result = sanitizeErrorMessage(message);
     expect(result).toBe(expected);
@@ -88,7 +87,7 @@ describe('sanitizeError', () => {
   it('should sanitize Error objects', () => {
     const error = new Error('TLS certificate file not found at: /home/user/certs/lnd.cert');
     const sanitized = sanitizeError(error);
-    
+
     expect(sanitized).toBeInstanceOf(Error);
     expect(sanitized.message).toBe('TLS certificate file not found at: [REDACTED_CERT_PATH]');
     expect(sanitized.stack).toBe(error.stack);
@@ -97,7 +96,7 @@ describe('sanitizeError', () => {
   it('should handle non-Error objects', () => {
     const nonError = 'File not found: /var/log/app.log';
     const sanitized = sanitizeError(nonError);
-    
+
     expect(sanitized).toBeInstanceOf(Error);
     expect(sanitized.message).toBe('File not found: [REDACTED_PATH]');
   });
