@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { existsSync } from 'fs';
 import logger from '../utils/logger';
+import { sanitizeErrorMessage } from '../utils/sanitize';
 
 // Load environment variables
 dotenv.config();
@@ -68,13 +69,13 @@ export function getConfig(): Config {
   } catch (error) {
     // Extract the error message
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
+
     // Sanitize the error message to remove sensitive information
     const sanitizedMessage = sanitizeErrorMessage(errorMessage);
-    
+
     // Log the sanitized message
     logger.fatal(`Failed to load configuration: ${sanitizedMessage}`);
-    
+
     // Re-throw the original error for proper error handling
     throw error;
   }
