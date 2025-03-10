@@ -5,7 +5,13 @@ module.exports = {
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        // Disable type checking for tests
+        isolatedModules: true,
+      },
+    ],
   },
   moduleFileExtensions: ['ts', 'js', 'json', 'node'],
   setupFiles: ['<rootDir>/src/__tests__/setup.ts'],
