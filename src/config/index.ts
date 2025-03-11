@@ -66,9 +66,16 @@ export function getConfig(): Config {
     logger.info('Configuration loaded successfully');
     return config;
   } catch (error) {
-    logger.fatal(
-      `Failed to load configuration: ${error instanceof Error ? error.message : String(error)}`
-    );
+    // Extract the error message
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Sanitize the error message to remove sensitive information
+    const sanitizedMessage = sanitizeErrorMessage(errorMessage);
+    
+    // Log the sanitized message
+    logger.fatal(`Failed to load configuration: ${sanitizedMessage}`);
+    
+    // Re-throw the original error for proper error handling
     throw error;
   }
 }
