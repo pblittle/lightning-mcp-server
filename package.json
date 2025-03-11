@@ -24,7 +24,11 @@
     "bitcoin",
     "mcp"
   ],
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pblittle/mcp-server-lnd.git"
+  },
+  "author": "P. Barrett Little",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "latest",
