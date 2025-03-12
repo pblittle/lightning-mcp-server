@@ -109,13 +109,13 @@ export class McpServer {
             content: [
               {
                 type: 'text',
-                text: result.response
+                text: result.response,
               },
               {
                 type: 'application/json',
-                text: JSON.stringify(result.data, null, 2)
-              }
-            ]
+                text: JSON.stringify(result.data, null, 2),
+              },
+            ],
           };
         }
 

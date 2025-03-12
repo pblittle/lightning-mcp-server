@@ -48,22 +48,22 @@ export class ChannelQueryTool implements McpTool {
   async executeQuery(query: string): Promise<{ response: string; data: Record<string, any> }> {
     try {
       logger.info(`Received query: "${query}"`);
-      
+
       // Parse the query to determine intent
       const intent = this.intentParser.parseIntent(query);
-      
+
       // Handle the query based on the intent
       const result = await this.queryHandler.handleQuery(intent);
-      
+
       logger.info(`Query handled successfully: "${query}"`);
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error(`Error executing query: ${errorMessage}`);
-      
+
       return {
         response: `I encountered an error while processing your query: ${errorMessage}`,
-        data: {}
+        data: {},
       };
     }
   }
