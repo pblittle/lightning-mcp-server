@@ -4,7 +4,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 
 // Spawn the MCP server process
-const serverProcess = spawn('node', [path.resolve(process.cwd(), 'mock-server.js')]);
+const serverProcess = spawn('node', [path.resolve(process.cwd(), 'scripts/mock-server.js')]);
 
 // Send a JSON-RPC request to query channels
 const request = {
@@ -14,9 +14,9 @@ const request = {
   params: {
     name: 'queryChannels',
     arguments: {
-      query: 'Show me all my channels'
-    }
-  }
+      query: 'Show me all my channels',
+    },
+  },
 };
 
 // Write the request to the server's stdin
@@ -26,20 +26,20 @@ serverProcess.stdin.write(JSON.stringify(request) + '\n');
 serverProcess.stdout.on('data', (data) => {
   console.log('\nResponse from server:');
   console.log('-'.repeat(50));
-  
+
   try {
     const response = JSON.parse(data.toString());
-    
+
     // Extract and display the text content
     if (response.result && response.result.content) {
-      const textContent = response.result.content.find(item => item.type === 'text');
+      const textContent = response.result.content.find((item) => item.type === 'text');
       if (textContent) {
         console.log(textContent.text);
       }
-      
+
       console.log('\nJSON Data:');
       console.log('-'.repeat(50));
-      const jsonContent = response.result.content.find(item => item.type === 'application/json');
+      const jsonContent = response.result.content.find((item) => item.type === 'application/json');
       if (jsonContent) {
         console.log(JSON.parse(jsonContent.text));
       }
@@ -49,7 +49,7 @@ serverProcess.stdout.on('data', (data) => {
   } catch (error) {
     console.log('Raw response:', data.toString());
   }
-  
+
   // Exit after receiving the response
   setTimeout(() => {
     serverProcess.kill();
