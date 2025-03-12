@@ -1,6 +1,6 @@
 # LND MCP Server
 
-A [Model Context Protocol](https://modelcontextprotocol.io) (MCP)-compatible server for interacting with your [Lightning Network Daemon](https://docs.lightning.engineering/lightning-network-tools/lnd) (LND) node. This server provides a secure interface to execute LND commands through the Model Context Protocol, allowing AI assistants to safely interact with your Lightning Network node.
+A [Model Context Protocol](https://modelcontextprotocol.io) (MCP)-compatible server for interacting with your [Lightning Network Daemon](https://docs.lightning.engineering/lightning-network-tools/lnd) (LND) node. This server provides a natural language interface to query your LND node through the Model Context Protocol, allowing AI assistants to safely interact with your node data.
 
 This MCP server can be used with any LLM application that supports the Model Context Protocol, including Block Goose, Claude, and OpenAI-based applications.
 
@@ -67,26 +67,57 @@ npm run mcp
 
 ## MCP Server Features
 
-### Execute LND Command Tool
+### Natural Language LND Queries
 
-The MCP server provides a tool called `executeLndCommand` that allows executing safe LND commands through the Model Context Protocol. This tool validates commands against a whitelist and ensures parameters are valid.
+The MCP server provides a powerful natural language query interface for your LND node. This allows you to interact with your node using simple, conversational language instead of remembering specific commands and parameters.
 
-By default, only read-only commands are allowed. To enable write commands (like creating invoices), set the `ALLOW_WRITE_COMMANDS` environment variable to `true` in your `.env` file:
+#### Currently Supported: Channel Queries
 
-```bash
-ALLOW_WRITE_COMMANDS=true
-```
+The first implementation focuses on comprehensive channel queries:
 
-#### Available Commands
+- "Show me all my channels"
+- "What's the health of my channels?"
+- "How is my channel liquidity distributed?"
 
-The server supports a variety of LND commands, including:
+These queries provide detailed information about your channels, including capacity, balance, status, health analysis, and liquidity distribution.
 
-- **Read-only commands**: `getWalletInfo`, `getChainBalance`, `getChannelBalance`, `getChannels`, `getPeers`, `getNetworkInfo`, `getClosedChannels`, `getPendingChannels`, `getInvoices`, `getPayments`, `decodePaymentRequest`
-- **Write commands** (when enabled): `createInvoice`, `payViaPaymentRequest`
+#### Future Expansions
 
-Each command is validated to ensure it's allowed and that all required parameters are provided.
+The architecture is designed for easy expansion to include:
+
+- **Node queries**: Information about connected nodes, network position, etc.
+- **Transaction queries**: Payment history, routing information, fee analysis
+- **Network queries**: Network graph insights, route planning, path discovery
+
+#### Benefits
+
+- **Intuitive**: No need to remember specific command syntax
+- **Contextual**: Responses are formatted in an easy-to-understand way
+- **Comprehensive**: Get detailed information with simple queries
+- **Flexible**: Multiple ways to ask for the same information
+- **Expandable**: Architecture designed to add more query capabilities
 
 ## Testing
+
+### Channel Query Tests
+
+Test the natural language channel query functionality:
+
+```bash
+# Start the mock server
+node scripts/mock-server.js
+
+# In another terminal, run the test scripts
+node test/channel-queries/list.js
+node test/channel-queries/health.js
+node test/channel-queries/liquidity.js
+```
+
+Each test script demonstrates a different type of natural language query:
+
+1. **Channel List**: Shows all channels with capacity and status
+2. **Channel Health**: Identifies inactive or problematic channels
+3. **Liquidity Distribution**: Shows the balance between local and remote liquidity
 
 ### Automated Tests
 
@@ -105,52 +136,28 @@ make test
 The test suite includes:
 
 - Unit tests for LND client connection
-- Unit tests for balance and node information queries
+- Unit tests for natural language processing and query handling
 - Mocked LND responses for deterministic testing
 
 Tests use Jest and follow a consistent pattern of mocking external dependencies while testing the full integration between components. For more details on the testing strategy, see the [Architecture documentation](./ARCHITECTURE.md#4-testing-strategy).
 
-### Testing with Mock LND Connection
+### Testing with Mock Server
 
 You can run the MCP server with a mocked LND connection for testing purposes without needing a real LND node:
 
-#### Standard Mock Server
-
 ```bash
-npm run mcp:mock
+node scripts/mock-server.js
 ```
 
 This will:
 
 1. Create mock TLS certificate and macaroon files in a `mock` directory
 2. Start the MCP server with a mock LND client that returns predefined responses
-3. Allow you to test the MCP server functionality without a real LND connection
+3. Allow you to test the natural language queries without a real LND connection
 
-#### Fixed Mock Server (for MCP Inspector)
+#### MCP Inspector Testing
 
-If you're using the MCP Inspector to test the server, use the fixed mock server instead:
-
-```bash
-npm run mcp:fixed-mock
-```
-
-This version provides properly formatted JSON responses that are compatible with the MCP Inspector.
-
-#### MCP Inspector Test
-
-For a simplified testing experience with the MCP Inspector, use the provided test script:
-
-```bash
-npm run mcp:inspector-test
-```
-
-This script:
-
-1. Launches the MCP Inspector with the fixed mock server
-2. Provides instructions for testing in the terminal
-3. Automatically connects the fixed mock server to the MCP Inspector
-
-To use the MCP Inspector test:
+For a simplified testing experience with the MCP Inspector, you can:
 
 1. Install the MCP Inspector if you haven't already:
 
@@ -158,53 +165,35 @@ To use the MCP Inspector test:
    npm install -g @modelcontextprotocol/inspector
    ```
 
-2. Run the MCP Inspector test script:
+2. Start the mock server:
 
    ```bash
-   npm run mcp:inspector-test
-   ```
-
-3. Follow the instructions in the terminal to test the MCP server with the MCP Inspector
-
-#### Manual MCP Inspector Setup
-
-You can also manually set up the MCP Inspector:
-
-1. Install the MCP Inspector if you haven't already:
-
-   ```bash
-   npm install -g @modelcontextprotocol/inspector
-   ```
-
-2. Start the fixed mock server:
-
-   ```bash
-   npm run mcp:fixed-mock
+   node scripts/mock-server.js
    ```
 
 3. In another terminal, run the MCP Inspector:
 
    ```bash
-   mcp-inspector
+   npx @modelcontextprotocol/inspector
    ```
 
 4. In the MCP Inspector web interface:
 
    - Click "Connect" in the top right
    - Set the transport type to "stdio"
-   - Set the command to the path to your fixed-mock-server.js file
+   - Set the command to the path to your `scripts/mock-server.js` file
    - Click "Connect"
 
 5. Once connected, you can:
    - List available tools
-   - Call the executeLndCommand tool with different commands
-   - See the mock responses
+   - Try natural language queries
+   - See the human-friendly responses and structured data
 
-These mock servers are useful for:
+The mock server is useful for:
 
-- Testing the MCP server in isolation
+- Testing the natural language query functionality in isolation
 - Developing and testing LLM applications that use the MCP server
-- Demonstrating the MCP server functionality without a real LND node
+- Demonstrating the capabilities without a real LND node
 
 ## License
 
