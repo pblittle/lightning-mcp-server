@@ -9,19 +9,19 @@ import {
 import { LndClient } from '../lnd/client';
 import { Config } from '../config';
 import logger from '../utils/logger';
-import { ExecuteLndCommandTool } from './tools/executeLndCommand';
 import { createMcpError } from './utils';
+import { ChannelQueryTool } from './tools/channelQueryTool';
 
 /**
  * MCP Server for LND
  *
  * This server implements the Model Context Protocol to provide
- * safe access to LND node functionality.
+ * natural language querying of Lightning Network channels.
  */
 export class McpServer {
   private server: Server;
   private lndClient: LndClient;
-  private executeLndCommandTool: ExecuteLndCommandTool;
+  private channelQueryTool: ChannelQueryTool;
 
   /**
    * Initialize the MCP server
@@ -30,6 +30,7 @@ export class McpServer {
    */
   constructor(lndClient: LndClient, config: Config) {
     this.lndClient = lndClient;
+    this.channelQueryTool = new ChannelQueryTool(lndClient);
 
     // Create the MCP server
     this.server = new Server(
@@ -43,9 +44,6 @@ export class McpServer {
         },
       }
     );
-
-    // Initialize tools
-    this.executeLndCommandTool = new ExecuteLndCommandTool(lndClient, config);
 
     // Set up request handlers
     this.setupRequestHandlers();
@@ -70,21 +68,17 @@ export class McpServer {
         return {
           tools: [
             {
-              name: 'executeLndCommand',
-              description: 'Execute a safe LND command',
+              name: 'queryChannels',
+              description: 'Query Lightning Network channels using natural language',
               inputSchema: {
                 type: 'object',
                 properties: {
-                  command: {
+                  query: {
                     type: 'string',
-                    description: 'Name of the LND command to execute',
-                  },
-                  params: {
-                    type: 'object',
-                    description: 'Parameters for the command',
+                    description: 'Natural language query about channels',
                   },
                 },
-                required: ['command'],
+                required: ['query'],
               },
             },
           ],
@@ -102,23 +96,26 @@ export class McpServer {
 
         logger.debug({ name, args }, 'Handling CallTool request');
 
-        if (name === 'executeLndCommand') {
+        if (name === 'queryChannels') {
           // Validate required arguments
-          if (!args || !args.command || typeof args.command !== 'string') {
-            throw new McpError(ErrorCode.InvalidParams, 'Missing or invalid command parameter');
+          if (!args || !args.query || typeof args.query !== 'string') {
+            throw new McpError(ErrorCode.InvalidParams, 'Missing or invalid query parameter');
           }
 
-          // Execute the command
-          const params = args.params || {};
-          const result = await this.executeLndCommandTool.executeCommand(args.command, params);
+          // Execute the query
+          const result = await this.channelQueryTool.executeQuery(args.query);
 
           return {
             content: [
               {
                 type: 'text',
-                text: result,
+                text: result.response
               },
-            ],
+              {
+                type: 'application/json',
+                text: JSON.stringify(result.data, null, 2)
+              }
+            ]
           };
         }
 

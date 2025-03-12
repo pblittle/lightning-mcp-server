@@ -40,6 +40,35 @@ declare module 'ln-service' {
     capacity: number;
     local_balance: number;
     remote_balance: number;
+    channel_point: string;
+    active: boolean;
+    remote_pubkey: string;
+    commit_fee?: number;
+    commit_weight?: number;
+    fee_per_kw?: number;
+    total_satoshis_sent?: number;
+    total_satoshis_received?: number;
+    num_updates?: number;
+    pending_htlcs?: Array<unknown>;
+    csv_delay?: number;
+    private?: boolean;
+    initiator?: boolean;
+    chan_id?: string;
+    chan_status_flags?: string;
+    local_chan_reserve_sat?: number;
+    remote_chan_reserve_sat?: number;
+    static_remote_key?: boolean;
+    lifetime?: number;
+    uptime?: number;
+    close_address?: string;
+    push_amount_sat?: number;
+    thaw_height?: number;
+    [key: string]: any;
+  }
+
+  export interface NodeInfo {
+    alias: string;
+    public_key: string;
     [key: string]: any;
   }
 
@@ -140,4 +169,9 @@ declare module 'ln-service' {
     lnd: AuthenticatedLnd;
     request: string;
   }): Promise<Payment>;
+
+  export function getNodeInfo(args: {
+    lnd: AuthenticatedLnd;
+    public_key: string;
+  }): Promise<NodeInfo>;
 }

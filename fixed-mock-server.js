@@ -3,8 +3,8 @@
 /**
  * Fixed MCP-LND Mock Server
  *
- * This script runs a simplified MCP server with a mocked LND connection for testing purposes.
- * It directly implements the MCP protocol without relying on the SDK.
+ * This server implements a simplified MCP server with mocked LND connection
+ * for testing natural language channel queries.
  */
 
 const path = require('path');
@@ -17,14 +17,14 @@ const DEBUG = true;
 // Use a simple console logger instead of the actual logger
 const logger = {
   info: (message) =>
-    console.log(`[INFO] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
+    console.error(`[INFO] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
   warn: (message) =>
-    console.warn(`[WARN] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
+    console.error(`[WARN] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
   error: (message) =>
     console.error(`[ERROR] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
   debug: (message) =>
     DEBUG &&
-    console.log(`[DEBUG] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
+    console.error(`[DEBUG] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
   fatal: (message) =>
     console.error(`[FATAL] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
 };
@@ -50,16 +50,12 @@ if (!fs.existsSync(MOCK_MACAROON_PATH)) {
 }
 
 // Set environment variables for testing
-// These are not actually used by our mock server, but we set them
-// to prevent any imported code from trying to use real LND credentials
 process.env.LND_TLS_CERT_PATH = MOCK_CERT_PATH;
 process.env.LND_MACAROON_PATH = MOCK_MACAROON_PATH;
-process.env.USE_MOCK_LND = 'true'; // Signal to use mock responses
+process.env.USE_MOCK_LND = 'true';
 
 /**
  * Validate JSON string and log detailed error information if invalid
- * @param {string} jsonString JSON string to validate
- * @returns {boolean} True if valid JSON, false otherwise
  */
 function validateJson(jsonString) {
   try {
@@ -82,18 +78,6 @@ function validateJson(jsonString) {
         )})`
       );
       logger.error(`Context: ...${context}...`);
-
-      // Log nearby characters for more context
-      let positionInfo = '';
-      for (
-        let i = Math.max(0, position - 5);
-        i <= Math.min(jsonString.length - 1, position + 5);
-        i++
-      ) {
-        const char = jsonString.charAt(i);
-        positionInfo += `[${i}]:'${char}'(${jsonString.charCodeAt(i)}) `;
-      }
-      logger.error(`Nearby characters: ${positionInfo}`);
     }
 
     return false;
@@ -137,7 +121,7 @@ class SimpleMcpServer {
       // Validate the request JSON
       if (!validateJson(line)) {
         logger.error(`[${requestId}] Invalid JSON in request`);
-        this.sendError(null, -32700, 'Parse error - invalid JSON');
+        this.sendError(null, -32700, 'Parse error - invalid JSON', requestId);
         return;
       }
 
@@ -149,7 +133,7 @@ class SimpleMcpServer {
 
       if (!request.jsonrpc || request.jsonrpc !== '2.0') {
         logger.warn(`[${requestId}] Invalid JSON-RPC version: ${request.jsonrpc}`);
-        this.sendError(request.id, -32600, 'Invalid Request - expected jsonrpc: "2.0"');
+        this.sendError(request.id, -32600, 'Invalid Request - expected jsonrpc: "2.0"', requestId);
         return;
       }
 
@@ -184,21 +168,17 @@ class SimpleMcpServer {
       result: {
         tools: [
           {
-            name: 'executeLndCommand',
-            description: 'Execute a safe LND command',
+            name: 'queryChannels',
+            description: 'Query Lightning Network channels using natural language',
             inputSchema: {
               type: 'object',
               properties: {
-                command: {
+                query: {
                   type: 'string',
-                  description: 'Name of the LND command to execute',
-                },
-                params: {
-                  type: 'object',
-                  description: 'Parameters for the command',
+                  description: 'Natural language query about channels',
                 },
               },
-              required: ['command'],
+              required: ['query'],
             },
           },
         ],
@@ -217,7 +197,7 @@ class SimpleMcpServer {
 
     const { name, arguments: args } = request.params;
 
-    if (name !== 'executeLndCommand') {
+    if (name !== 'queryChannels') {
       logger.warn(`[${requestId}] Unknown tool requested: ${name}`);
       this.sendError(request.id, -32602, `Unknown tool: ${name}`, requestId);
       return;
@@ -228,10 +208,9 @@ class SimpleMcpServer {
       logger.info(`[${requestId}] Received args: ${JSON.stringify(args)}`);
     }
 
-    // Extract command - handle different formats
-    let commandName = '';
-    let commandParams = {};
-
+    // Extract query
+    let query = '';
+    
     if (!args) {
       logger.error(`[${requestId}] Missing arguments`);
       this.sendError(request.id, -32602, 'Missing arguments', requestId);
@@ -242,144 +221,104 @@ class SimpleMcpServer {
     if (typeof args === 'string') {
       try {
         const parsedArgs = JSON.parse(args);
-        if (parsedArgs && typeof parsedArgs.command === 'string') {
-          commandName = parsedArgs.command;
-          commandParams = parsedArgs.params || {};
+        if (parsedArgs && typeof parsedArgs.query === 'string') {
+          query = parsedArgs.query;
         }
       } catch (e) {
         // If parsing fails, use the string as is
-        commandName = args;
+        query = args;
       }
     }
-    // If args is an object with a command property
+    // If args is an object with a query property
     else if (typeof args === 'object' && args !== null) {
-      if (typeof args.command === 'string') {
-        // Normal case: args.command is a string
-        commandName = args.command;
-        commandParams = args.params || {};
-      }
-      // If args.command is an object that might be a stringified JSON
-      else if (typeof args.command === 'object' && args.command !== null) {
-        if (args.command.command && typeof args.command.command === 'string') {
-          commandName = args.command.command;
-          commandParams = args.command.params || args.params || {};
-        }
+      if (typeof args.query === 'string') {
+        query = args.query;
       }
     }
 
-    // Remove any quotes that might be wrapping the command name
-    if (commandName.startsWith('"') && commandName.endsWith('"')) {
-      commandName = commandName.slice(1, -1);
-    }
-
-    // Try to parse the command if it looks like JSON
-    if (commandName.startsWith('{') && commandName.endsWith('}')) {
-      try {
-        const parsedCommand = JSON.parse(commandName);
-        if (parsedCommand && typeof parsedCommand.command === 'string') {
-          commandName = parsedCommand.command;
-          commandParams = parsedCommand.params || commandParams;
-        }
-      } catch (e) {
-        // If parsing fails, keep the original command
-        logger.warn(`[${requestId}] Failed to parse command as JSON: ${e.message}`);
-      }
-    }
-
-    if (DEBUG) {
-      logger.info(
-        `[${requestId}] Extracted command: "${commandName}", params: ${JSON.stringify(
-          commandParams
-        )}`
-      );
-    }
-
-    if (!commandName) {
-      logger.warn(`[${requestId}] Could not extract a valid command from: ${JSON.stringify(args)}`);
-      this.sendError(request.id, -32602, 'Missing or invalid command parameter', requestId);
+    if (!query) {
+      logger.warn(`[${requestId}] Could not extract a valid query from: ${JSON.stringify(args)}`);
+      this.sendError(request.id, -32602, 'Missing or invalid query parameter', requestId);
       return;
     }
 
-    // Check if command is allowed
-    const allowedCommands = [
-      'getWalletInfo',
-      'getChainBalance',
-      'getChannelBalance',
-      'getChannels',
-      'getPeers',
-      'getNetworkInfo',
-      'getClosedChannels',
-      'getPendingChannels',
-      'getInvoices',
-      'getPayments',
-      'decodePaymentRequest',
-      'createInvoice',
-      'payViaPaymentRequest',
-    ];
-
-    if (!allowedCommands.includes(commandName)) {
-      logger.warn(`[${requestId}] Command not allowed: ${commandName}`);
-      this.sendError(
-        request.id,
-        -32602,
-        `Command '${commandName}' is not allowed. Allowed commands: ${allowedCommands.join(', ')}`,
-        requestId
-      );
-      return;
+    // Mock response based on query
+    let response = '';
+    let data = {};
+    
+    if (query.match(/list|show|what channels/i)) {
+      response = "Your node has 5 channels with a total capacity of 0.05000000 BTC (5,000,000 sats). 4 channels are active and 1 is inactive.\n\nYour largest channels:\n1. ACINQ: 0.02000000 BTC (2,000,000 sats) (active)\n2. Bitrefill: 0.01000000 BTC (1,000,000 sats) (active)\n3. LightningTipBot: 0.00800000 BTC (800,000 sats) (active)\n4. Wallet of Satoshi: 0.00700000 BTC (700,000 sats) (active)\n5. LN+: 0.00500000 BTC (500,000 sats) (inactive)";
+      data = {
+        channels: [
+          {
+            capacity: 2000000,
+            local_balance: 1000000,
+            remote_balance: 1000000,
+            channel_point: "txid:0",
+            active: true,
+            remote_pubkey: "03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f",
+            remote_alias: "ACINQ"
+          },
+          // More channels...
+        ],
+        summary: {
+          totalCapacity: 5000000,
+          totalLocalBalance: 2500000,
+          totalRemoteBalance: 2500000,
+          activeChannels: 4,
+          inactiveChannels: 1,
+          averageCapacity: 1000000,
+          healthyChannels: 4,
+          unhealthyChannels: 1
+        }
+      };
+    } else if (query.match(/health|status|inactive|problematic/i)) {
+      response = "Channel Health Summary: 4 healthy, 1 needs attention.\n\nYou have 1 inactive channel that needs attention:\n1. LN+: 0.00500000 BTC (500,000 sats)\n";
+      data = {
+        channels: [
+          // Channel data...
+        ],
+        summary: {
+          healthyChannels: 4,
+          unhealthyChannels: 1,
+          activeChannels: 4,
+          inactiveChannels: 1
+        }
+      };
+    } else if (query.match(/liquidity|balance|imbalanced/i)) {
+      response = "Liquidity Distribution: 0.02500000 BTC (2,500,000 sats) local (50%), 0.02500000 BTC (2,500,000 sats) remote (50%).\n\nYour most balanced channels:\n1. ACINQ: 50% local / 50% remote\n2. Bitrefill: 50% local / 50% remote\n3. LightningTipBot: 50% local / 50% remote\n\nYour most imbalanced channels:\n1. Wallet of Satoshi: 30% local / 70% remote\n";
+      data = {
+        channels: [
+          // Channel data...
+        ],
+        summary: {
+          totalLocalBalance: 2500000,
+          totalRemoteBalance: 2500000,
+          totalCapacity: 5000000
+        }
+      };
+    } else {
+      response = `I'm sorry, I don't understand how to answer: "${query}"`;
     }
 
-    // Mock response based on command
-    let result;
-    switch (commandName) {
-      case 'getWalletInfo':
-        result = {
-          alias: 'mock-lnd-node',
-          public_key: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-          version: '0.15.5-beta',
-          active_channels_count: 5,
-          peers_count: 10,
-          block_height: 800000,
-          is_synced_to_chain: true,
-          is_testnet: false,
-          chains: ['bitcoin'],
-        };
-        break;
-      case 'getChainBalance':
-        result = {
-          confirmed_balance: 1000000,
-          unconfirmed_balance: 50000,
-        };
-        break;
-      case 'getChannelBalance':
-        result = {
-          channel_balance: 500000,
-          pending_balance: 10000,
-        };
-        break;
-      default:
-        result = { message: `Mock response for ${commandName}` };
-    }
-
-    if (DEBUG) {
-      logger.info(
-        `[${requestId}] Generated mock result for ${commandName}: ${JSON.stringify(result)}`
-      );
-    }
-
-    const response = {
+    const mcpResponse = {
       jsonrpc: '2.0',
       id: request.id,
       result: {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(result, null, 2),
+            text: response
           },
-        ],
-      },
+          {
+            type: 'application/json',
+            text: JSON.stringify(data, null, 2)
+          }
+        ]
+      }
     };
 
-    this.sendResponse(response, requestId);
+    this.sendResponse(mcpResponse, requestId);
   }
 
   sendResponse(response, requestId) {
@@ -389,16 +328,9 @@ class SimpleMcpServer {
 
       if (DEBUG) {
         logger.info(`[${requestId}] Sending response: ${jsonString}`);
-
-        // Validate JSON before sending
-        try {
-          JSON.parse(jsonString);
-          logger.info(`[${requestId}] Response is valid JSON`);
-        } catch (error) {
-          logger.error(`[${requestId}] Response is NOT valid JSON: ${error.message}`);
-        }
       }
 
+      // Important: Use console.log for the actual response
       console.log(jsonString);
     } catch (error) {
       logger.error(`[${requestId}] Error sending response: ${error.message}`);
@@ -407,9 +339,14 @@ class SimpleMcpServer {
       // Try to send a simplified error response
       try {
         console.log(
-          `{"jsonrpc":"2.0","id":"${
-            response.id || 'null'
-          }","error":{"code":-32603,"message":"Internal error while sending response"}}`
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: response.id || null,
+            error: {
+              code: -32603,
+              message: 'Internal error while sending response',
+            },
+          })
         );
       } catch (e) {
         logger.error(`[${requestId}] Failed to send error response: ${e.message}`);
@@ -433,16 +370,9 @@ class SimpleMcpServer {
 
       if (DEBUG) {
         logger.warn(`[${requestId}] Sending error response: ${jsonString}`);
-
-        // Validate JSON before sending
-        try {
-          JSON.parse(jsonString);
-          logger.info(`[${requestId}] Error response is valid JSON`);
-        } catch (error) {
-          logger.error(`[${requestId}] Error response is NOT valid JSON: ${error.message}`);
-        }
       }
 
+      // Important: Use console.log for the actual response
       console.log(jsonString);
     } catch (e) {
       logger.error(`[${requestId}] Error sending error response: ${e.message}`);
@@ -451,7 +381,14 @@ class SimpleMcpServer {
       // Try to send a very basic error response
       try {
         console.log(
-          '{"jsonrpc":"2.0","id":null,"error":{"code":-32603,"message":"Internal error"}}'
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: null,
+            error: {
+              code: -32603,
+              message: 'Internal error',
+            },
+          })
         );
       } catch (err) {
         logger.error(`[${requestId}] Failed to send basic error response: ${err.message}`);
