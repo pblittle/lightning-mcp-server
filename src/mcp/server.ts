@@ -11,6 +11,7 @@ import { Config } from '../config';
 import logger from '../utils/logger';
 import { createMcpError } from './utils';
 import { ChannelQueryTool } from './tools/channelQueryTool';
+import { sanitizeError } from '../utils/sanitize';
 
 /**
  * MCP Server for LND
@@ -28,7 +29,7 @@ export class McpServer {
    * @param lndClient LND client instance
    * @param config Application configuration
    */
-  constructor(lndClient: LndClient, config: Config) {
+  constructor(lndClient: LndClient, _config: Config) {
     this.lndClient = lndClient;
     this.channelQueryTool = new ChannelQueryTool(lndClient);
 
@@ -50,7 +51,8 @@ export class McpServer {
 
     // Set up error handler
     this.server.onerror = (error) => {
-      logger.error({ error }, 'MCP server error');
+      const sanitizedError = sanitizeError(error);
+      logger.error({ error: { message: sanitizedError.message } }, 'MCP server error');
     };
 
     logger.info('MCP server initialized');
@@ -148,7 +150,8 @@ export class McpServer {
 
       logger.info('MCP server started');
     } catch (error) {
-      logger.fatal({ error }, 'Failed to start MCP server');
+      const sanitizedError = sanitizeError(error);
+      logger.fatal({ error: { message: sanitizedError.message } }, 'Failed to start MCP server');
       throw error;
     }
   }
@@ -162,7 +165,8 @@ export class McpServer {
       this.lndClient.close();
       logger.info('MCP server stopped');
     } catch (error) {
-      logger.error({ error }, 'Error stopping MCP server');
+      const sanitizedError = sanitizeError(error);
+      logger.error({ error: { message: sanitizedError.message } }, 'Error stopping MCP server');
     }
   }
 }

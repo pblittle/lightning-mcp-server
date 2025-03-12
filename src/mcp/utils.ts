@@ -1,5 +1,6 @@
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import logger from '../utils/logger';
+import { sanitizeErrorMessage } from '../utils/sanitize';
 
 /**
  * Format error for MCP response
@@ -9,7 +10,8 @@ import logger from '../utils/logger';
  */
 export function formatError(error: unknown, context: string): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
-  return `${context}: ${errorMessage}`;
+  const sanitizedMessage = sanitizeErrorMessage(errorMessage);
+  return `${context}: ${sanitizedMessage}`;
 }
 
 /**
@@ -21,8 +23,16 @@ export function formatError(error: unknown, context: string): string {
 export function createMcpError(error: unknown, context: string): McpError {
   const errorMessage = formatError(error, context);
 
-  // Log the error
-  logger.error({ error, context }, errorMessage);
+  // Log the error with sanitized message
+  logger.error(
+    {
+      error: {
+        message: sanitizeErrorMessage(error instanceof Error ? error.message : String(error)),
+      },
+      context,
+    },
+    errorMessage
+  );
 
   // Determine the appropriate error code
   let errorCode = ErrorCode.InternalError;
@@ -48,7 +58,10 @@ export function formatResponse(data: any): string {
   try {
     return JSON.stringify(data, null, 2);
   } catch (error) {
-    logger.error({ error }, 'Failed to format response');
+    const sanitizedError = sanitizeErrorMessage(
+      error instanceof Error ? error.message : String(error)
+    );
+    logger.error({ error: { message: sanitizedError } }, 'Failed to format response');
     return String(data);
   }
 }

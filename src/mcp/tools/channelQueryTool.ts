@@ -1,8 +1,9 @@
-import { McpTool } from '@modelcontextprotocol/sdk';
+import { McpTool } from '@modelcontextprotocol/sdk/types.js';
 import { LndClient } from '../../lnd/client';
 import { IntentParser } from '../nlp/intentParser';
 import { ChannelQueryHandler } from '../handlers/channelQueryHandler';
 import logger from '../../utils/logger';
+import { sanitizeError } from '../../utils/sanitize';
 
 export class ChannelQueryTool implements McpTool {
   private readonly name = 'queryChannels';
@@ -58,11 +59,11 @@ export class ChannelQueryTool implements McpTool {
       logger.info(`Query handled successfully: "${query}"`);
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`Error executing query: ${errorMessage}`);
+      const sanitizedError = sanitizeError(error);
+      logger.error(`Error executing query: ${sanitizedError.message}`);
 
       return {
-        response: `I encountered an error while processing your query: ${errorMessage}`,
+        response: `I encountered an error while processing your query: ${sanitizedError.message}`,
         data: {},
       };
     }

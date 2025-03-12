@@ -4,6 +4,7 @@ import { Intent } from '../../types/intent';
 import { Channel, ChannelQueryResult, ChannelSummary } from '../../types/channel';
 import { ChannelFormatter } from '../formatters/channelFormatter';
 import logger from '../../utils/logger';
+import { sanitizeError } from '../../utils/sanitize';
 
 export interface QueryResult {
   response: string;
@@ -49,11 +50,11 @@ export class ChannelQueryHandler {
           };
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`Error handling channel query: ${errorMessage}`);
+      const sanitizedError = sanitizeError(error);
+      logger.error(`Error handling channel query: ${sanitizedError.message}`);
 
       return {
-        response: `I encountered an error while processing your channel query: ${errorMessage}`,
+        response: `I encountered an error while processing your channel query: ${sanitizedError.message}`,
         data: {},
       };
     }
@@ -83,8 +84,9 @@ export class ChannelQueryHandler {
         summary,
       };
     } catch (error) {
-      logger.error(`Error fetching channel data: ${error}`);
-      throw error;
+      const sanitizedError = sanitizeError(error);
+      logger.error(`Error fetching channel data: ${sanitizedError.message}`);
+      throw sanitizedError;
     }
   }
 
@@ -95,7 +97,7 @@ export class ChannelQueryHandler {
         channels.map(async (channel) => {
           try {
             // Get node info to get alias
-            const nodeInfo = await lnService.getNode({
+            const nodeInfo = await lnService.getNodeInfo({
               lnd,
               public_key: channel.remote_pubkey,
             });
@@ -113,7 +115,8 @@ export class ChannelQueryHandler {
 
       return channelsWithAliases;
     } catch (error) {
-      logger.error(`Error adding node aliases: ${error}`);
+      const sanitizedError = sanitizeError(error);
+      logger.error(`Error adding node aliases: ${sanitizedError.message}`);
       // Return original channels if we can't add aliases
       return channels;
     }

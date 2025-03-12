@@ -67,16 +67,20 @@ export function getConfig(): Config {
     logger.info('Configuration loaded successfully');
     return config;
   } catch (error) {
-    // Extract the error message
+    // Create a sanitized error
     const errorMessage = error instanceof Error ? error.message : String(error);
-
-    // Sanitize the error message to remove sensitive information
     const sanitizedMessage = sanitizeErrorMessage(errorMessage);
 
     // Log the sanitized message
     logger.fatal(`Failed to load configuration: ${sanitizedMessage}`);
 
-    // Re-throw the original error for proper error handling
-    throw error;
+    // Create a new error with the sanitized message to avoid exposing sensitive information
+    const sanitizedError = new Error(sanitizedMessage);
+    if (error instanceof Error && error.stack) {
+      sanitizedError.stack = error.stack;
+    }
+
+    // Throw the sanitized error
+    throw sanitizedError;
   }
 }

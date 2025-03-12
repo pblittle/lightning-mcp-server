@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import * as lnService from 'ln-service';
 import { Config } from '../config';
 import logger from '../utils/logger';
+import { sanitizeError } from '../utils/sanitize';
 
 /**
  * LND Authentication type for connecting to an LND node
@@ -57,12 +58,9 @@ export class LndClient {
       logger.info(`Creating LND connection to ${socket}`);
       return lnService.authenticatedLndGrpc(auth);
     } catch (error) {
-      logger.fatal(
-        `Failed to create LND connection: ${error instanceof Error ? error.message : String(error)}`
-      );
-      throw new Error(
-        `LND connection error: ${error instanceof Error ? error.message : String(error)}`
-      );
+      const sanitizedError = sanitizeError(error);
+      logger.fatal(`Failed to create LND connection: ${sanitizedError.message}`);
+      throw new Error(`LND connection error: ${sanitizedError.message}`);
     }
   }
 
@@ -86,12 +84,9 @@ export class LndClient {
       logger.info('LND connection successful');
       return true;
     } catch (error) {
-      logger.error(
-        `LND connection check failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-      throw new Error(
-        `LND connection check failed: ${error instanceof Error ? error.message : String(error)}`
-      );
+      const sanitizedError = sanitizeError(error);
+      logger.error(`LND connection check failed: ${sanitizedError.message}`);
+      throw new Error(`LND connection check failed: ${sanitizedError.message}`);
     }
   }
 
@@ -104,9 +99,8 @@ export class LndClient {
     try {
       logger.info('LND connection closed');
     } catch (error) {
-      logger.error(
-        `Error closing LND connection: ${error instanceof Error ? error.message : String(error)}`
-      );
+      const sanitizedError = sanitizeError(error);
+      logger.error(`Error closing LND connection: ${sanitizedError.message}`);
     }
   }
 }

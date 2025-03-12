@@ -7,11 +7,28 @@ import logger from '../../utils/logger';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { sanitizeError } from '../../utils/sanitize';
 
 // Mock dependencies
-jest.mock('../../utils/logger');
+jest.mock('../../utils/logger', () => ({
+  info: jest.fn(),
+  debug: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  fatal: jest.fn(),
+}));
 jest.mock('@modelcontextprotocol/sdk/server/index.js');
 jest.mock('@modelcontextprotocol/sdk/server/stdio.js');
+jest.mock('ln-service');
+jest.mock('../../utils/sanitize', () => ({
+  sanitizeError: jest.fn().mockImplementation((error) => {
+    if (error instanceof Error) {
+      return new Error(error.message);
+    }
+    return new Error(String(error));
+  }),
+  sanitizeErrorMessage: jest.fn().mockImplementation((message) => message),
+}));
 
 describe('McpServer', () => {
   // Mock LND client

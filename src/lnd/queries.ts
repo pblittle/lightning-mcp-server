@@ -7,6 +7,7 @@ import {
   NodeData,
 } from '../types';
 import logger from '../utils/logger';
+import { sanitizeError } from '../utils/sanitize';
 
 /**
  * Format a satoshi amount to BTC with proper decimal places
@@ -47,12 +48,9 @@ export async function getWalletBalance(client: LndClient): Promise<WalletBalance
     logger.debug({ balance: response }, 'Retrieved wallet balance');
     return response;
   } catch (error) {
-    logger.error(
-      `Failed to get wallet balance: ${error instanceof Error ? error.message : String(error)}`
-    );
-    throw new Error(
-      `Failed to get wallet balance: ${error instanceof Error ? error.message : String(error)}`
-    );
+    const sanitizedError = sanitizeError(error);
+    logger.error(`Failed to get wallet balance: ${sanitizedError.message}`);
+    throw new Error(`Failed to get wallet balance: ${sanitizedError.message}`);
   }
 }
 
@@ -81,12 +79,9 @@ export async function getChannelBalance(client: LndClient): Promise<ChannelBalan
     logger.debug({ balance: response }, 'Retrieved channel balance');
     return response;
   } catch (error) {
-    logger.error(
-      `Failed to get channel balance: ${error instanceof Error ? error.message : String(error)}`
-    );
-    throw new Error(
-      `Failed to get channel balance: ${error instanceof Error ? error.message : String(error)}`
-    );
+    const sanitizedError = sanitizeError(error);
+    logger.error(`Failed to get channel balance: ${sanitizedError.message}`);
+    throw new Error(`Failed to get channel balance: ${sanitizedError.message}`);
   }
 }
 
@@ -117,12 +112,9 @@ export async function getAllBalances(client: LndClient): Promise<AllBalancesResp
     logger.debug({ balance: response }, 'Retrieved all balances');
     return response;
   } catch (error) {
-    logger.error(
-      `Failed to get all balances: ${error instanceof Error ? error.message : String(error)}`
-    );
-    throw new Error(
-      `Failed to get all balances: ${error instanceof Error ? error.message : String(error)}`
-    );
+    const sanitizedError = sanitizeError(error);
+    logger.error(`Failed to get all balances: ${sanitizedError.message}`);
+    throw new Error(`Failed to get all balances: ${sanitizedError.message}`);
   }
 }
 
@@ -179,11 +171,8 @@ export async function getNodeData(client: LndClient): Promise<NodeData> {
     logger.debug({ nodeData }, 'Retrieved node data');
     return nodeData;
   } catch (error) {
-    logger.error(
-      `Failed to get node data: ${error instanceof Error ? error.message : String(error)}`
-    );
-    throw new Error(
-      `Failed to get node data: ${error instanceof Error ? error.message : String(error)}`
-    );
+    const sanitizedError = sanitizeError(error);
+    logger.error(`Failed to get node data: ${sanitizedError.message}`);
+    throw new Error(`Failed to get node data: ${sanitizedError.message}`);
   }
 }
