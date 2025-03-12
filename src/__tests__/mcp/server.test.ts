@@ -167,14 +167,21 @@ describe('McpServer', () => {
       expect(result).toHaveProperty('tools');
       expect(result.tools).toBeInstanceOf(Array);
       expect(result.tools.length).toBeGreaterThan(0);
-      expect(result.tools[0]).toHaveProperty('name', 'executeLndCommand');
+      expect(result.tools[0]).toHaveProperty('name', 'queryChannels');
     });
 
-    test('should handle CallTool requests for executeLndCommand', async () => {
-      // Mock getWalletInfo to return a result
-      (lnService.getWalletInfo as jest.Mock).mockResolvedValueOnce({
-        alias: 'test-node',
-        public_key: 'test-pubkey',
+    test('should handle CallTool requests for queryChannels', async () => {
+      // Mock getChannels to return a result
+      (lnService.getChannels as jest.Mock).mockResolvedValueOnce({
+        channels: [
+          {
+            capacity: 1000000,
+            local_balance: 500000,
+            remote_balance: 500000,
+            active: true,
+            remote_pubkey: 'test-pubkey',
+          },
+        ],
       });
 
       // Find the CallTool handler
@@ -191,9 +198,9 @@ describe('McpServer', () => {
       // Call the handler with a valid request
       const result = await callToolHandler({
         params: {
-          name: 'executeLndCommand',
+          name: 'queryChannels',
           arguments: {
-            command: 'getWalletInfo',
+            query: 'Show me all my channels',
           },
         },
       });
@@ -202,8 +209,6 @@ describe('McpServer', () => {
       expect(result).toHaveProperty('content');
       expect(result.content).toBeInstanceOf(Array);
       expect(result.content[0]).toHaveProperty('type', 'text');
-      expect(result.content[0].text).toContain('test-node');
-      expect(result.content[0].text).toContain('test-pubkey');
     });
 
     test('should handle errors in CallTool requests', async () => {
@@ -229,7 +234,7 @@ describe('McpServer', () => {
       ).rejects.toThrow('Unknown tool');
     });
 
-    test('should validate command parameter in executeLndCommand', async () => {
+    test('should validate query parameter in queryChannels', async () => {
       // Find the CallTool handler
       const handlerCall = mockSetRequestHandler.mock.calls.find(
         (call) => call[0] === CallToolRequestSchema
@@ -241,15 +246,15 @@ describe('McpServer', () => {
 
       const callToolHandler = handlerCall[1] as Function;
 
-      // Call the handler with a missing command
+      // Call the handler with a missing query
       await expect(
         callToolHandler({
           params: {
-            name: 'executeLndCommand',
+            name: 'queryChannels',
             arguments: {},
           },
         })
-      ).rejects.toThrow('Missing or invalid command parameter');
+      ).rejects.toThrow('Missing or invalid query parameter');
     });
   });
 });

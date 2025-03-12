@@ -210,7 +210,7 @@ class SimpleMcpServer {
 
     // Extract query
     let query = '';
-    
+
     if (!args) {
       logger.error(`[${requestId}] Missing arguments`);
       this.sendError(request.id, -32602, 'Missing arguments', requestId);
@@ -245,19 +245,20 @@ class SimpleMcpServer {
     // Mock response based on query
     let response = '';
     let data = {};
-    
+
     if (query.match(/list|show|what channels/i)) {
-      response = "Your node has 5 channels with a total capacity of 0.05000000 BTC (5,000,000 sats). 4 channels are active and 1 is inactive.\n\nYour largest channels:\n1. ACINQ: 0.02000000 BTC (2,000,000 sats) (active)\n2. Bitrefill: 0.01000000 BTC (1,000,000 sats) (active)\n3. LightningTipBot: 0.00800000 BTC (800,000 sats) (active)\n4. Wallet of Satoshi: 0.00700000 BTC (700,000 sats) (active)\n5. LN+: 0.00500000 BTC (500,000 sats) (inactive)";
+      response =
+        'Your node has 5 channels with a total capacity of 0.05000000 BTC (5,000,000 sats). 4 channels are active and 1 is inactive.\n\nYour largest channels:\n1. ACINQ: 0.02000000 BTC (2,000,000 sats) (active)\n2. Bitrefill: 0.01000000 BTC (1,000,000 sats) (active)\n3. LightningTipBot: 0.00800000 BTC (800,000 sats) (active)\n4. Wallet of Satoshi: 0.00700000 BTC (700,000 sats) (active)\n5. LN+: 0.00500000 BTC (500,000 sats) (inactive)';
       data = {
         channels: [
           {
             capacity: 2000000,
             local_balance: 1000000,
             remote_balance: 1000000,
-            channel_point: "txid:0",
+            channel_point: 'txid:0',
             active: true,
-            remote_pubkey: "03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f",
-            remote_alias: "ACINQ"
+            remote_pubkey: '03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f',
+            remote_alias: 'ACINQ',
           },
           // More channels...
         ],
@@ -269,11 +270,12 @@ class SimpleMcpServer {
           inactiveChannels: 1,
           averageCapacity: 1000000,
           healthyChannels: 4,
-          unhealthyChannels: 1
-        }
+          unhealthyChannels: 1,
+        },
       };
     } else if (query.match(/health|status|inactive|problematic/i)) {
-      response = "Channel Health Summary: 4 healthy, 1 needs attention.\n\nYou have 1 inactive channel that needs attention:\n1. LN+: 0.00500000 BTC (500,000 sats)\n";
+      response =
+        'Channel Health Summary: 4 healthy, 1 needs attention.\n\nYou have 1 inactive channel that needs attention:\n1. LN+: 0.00500000 BTC (500,000 sats)\n';
       data = {
         channels: [
           // Channel data...
@@ -282,11 +284,12 @@ class SimpleMcpServer {
           healthyChannels: 4,
           unhealthyChannels: 1,
           activeChannels: 4,
-          inactiveChannels: 1
-        }
+          inactiveChannels: 1,
+        },
       };
     } else if (query.match(/liquidity|balance|imbalanced/i)) {
-      response = "Liquidity Distribution: 0.02500000 BTC (2,500,000 sats) local (50%), 0.02500000 BTC (2,500,000 sats) remote (50%).\n\nYour most balanced channels:\n1. ACINQ: 50% local / 50% remote\n2. Bitrefill: 50% local / 50% remote\n3. LightningTipBot: 50% local / 50% remote\n\nYour most imbalanced channels:\n1. Wallet of Satoshi: 30% local / 70% remote\n";
+      response =
+        'Liquidity Distribution: 0.02500000 BTC (2,500,000 sats) local (50%), 0.02500000 BTC (2,500,000 sats) remote (50%).\n\nYour most balanced channels:\n1. ACINQ: 50% local / 50% remote\n2. Bitrefill: 50% local / 50% remote\n3. LightningTipBot: 50% local / 50% remote\n\nYour most imbalanced channels:\n1. Wallet of Satoshi: 30% local / 70% remote\n';
       data = {
         channels: [
           // Channel data...
@@ -294,8 +297,8 @@ class SimpleMcpServer {
         summary: {
           totalLocalBalance: 2500000,
           totalRemoteBalance: 2500000,
-          totalCapacity: 5000000
-        }
+          totalCapacity: 5000000,
+        },
       };
     } else {
       response = `I'm sorry, I don't understand how to answer: "${query}"`;
@@ -308,14 +311,14 @@ class SimpleMcpServer {
         content: [
           {
             type: 'text',
-            text: response
+            text: response,
           },
           {
             type: 'application/json',
-            text: JSON.stringify(data, null, 2)
-          }
-        ]
-      }
+            text: JSON.stringify(data, null, 2),
+          },
+        ],
+      },
     };
 
     this.sendResponse(mcpResponse, requestId);
