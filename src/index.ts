@@ -3,7 +3,7 @@ import logger from './utils/logger';
 import { getConfig } from './config';
 import { createLndClient } from './lnd/client';
 import { createMcpServer } from './mcp/server';
-import { sanitizeError } from './utils/sanitize';
+import { sanitizeError, sanitizeForLogging } from './utils/sanitize';
 
 // Load environment variables
 dotenv.config();
@@ -34,7 +34,10 @@ async function main() {
     logger.info('MCP-LND server started');
   } catch (error) {
     const sanitizedError = sanitizeError(error);
-    logger.fatal(`Failed to start application: ${sanitizedError.message}`);
+    logger.fatal(
+      { error: sanitizeForLogging(error) },
+      `Failed to start application: ${sanitizedError.message}`
+    );
     process.exit(1);
   }
 }
@@ -51,7 +54,10 @@ async function shutdown() {
     logger.info('Server shutdown complete');
   } catch (error) {
     const sanitizedError = sanitizeError(error);
-    logger.error(`Error during shutdown: ${sanitizedError.message}`);
+    logger.error(
+      { error: sanitizeForLogging(error) },
+      `Error during shutdown: ${sanitizedError.message}`
+    );
   } finally {
     process.exit(0);
   }

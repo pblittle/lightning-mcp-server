@@ -1,4 +1,4 @@
-import { sanitizeErrorMessage, sanitizeError } from '../../utils/sanitize';
+import { sanitizeErrorMessage, sanitizeError, sanitizeConfig } from '../../utils/sanitize';
 
 describe('sanitizeErrorMessage', () => {
   it('should handle null or empty messages', () => {
@@ -80,6 +80,89 @@ describe('sanitizeErrorMessage', () => {
     // Then test the actual sanitizeErrorMessage function
     const result = sanitizeErrorMessage(message);
     expect(result).toBe(expected);
+  });
+});
+
+describe('sanitizeConfig', () => {
+  it('should handle null or undefined config', () => {
+    expect(sanitizeConfig(null as any)).toBe(null);
+    expect(sanitizeConfig(undefined as any)).toBe(undefined);
+  });
+
+  it('should redact sensitive fields in configuration objects', () => {
+    const config = {
+      lnd: {
+        tlsCertPath: '/path/to/tls.cert',
+        macaroonPath: '/path/to/admin.macaroon',
+        host: 'localhost',
+        port: '10009',
+      },
+      server: {
+        port: 3000,
+      },
+      credentials: {
+        apiKey: 'secret-api-key',
+        token: 'auth-token',
+      },
+    };
+
+    const sanitized = sanitizeConfig(config);
+
+    // Original config should not be modified
+    expect(config.lnd.tlsCertPath).toBe('/path/to/tls.cert');
+    expect(config.lnd.macaroonPath).toBe('/path/to/admin.macaroon');
+    expect(config.credentials.apiKey).toBe('secret-api-key');
+    expect(config.credentials.token).toBe('auth-token');
+
+    // Sanitized config should have redacted sensitive fields
+    expect(sanitized.lnd.tlsCertPath).toBe('[REDACTED]');
+    expect(sanitized.lnd.macaroonPath).toBe('[REDACTED]');
+    expect(sanitized.credentials.apiKey).toBe('[REDACTED]');
+    expect(sanitized.credentials.token).toBe('[REDACTED]');
+
+    // Non-sensitive fields should remain unchanged
+    expect(sanitized.lnd.host).toBe('localhost');
+    expect(sanitized.lnd.port).toBe('10009');
+    expect(sanitized.server.port).toBe(3000);
+  });
+
+  it('should handle nested objects and arrays', () => {
+    const config = {
+      nodes: [
+        {
+          name: 'node1',
+          certPath: '/path/to/cert1',
+          credentials: {
+            password: 'secret1',
+          },
+        },
+        {
+          name: 'node2',
+          certPath: '/path/to/cert2',
+          credentials: {
+            password: 'secret2',
+          },
+        },
+      ],
+    };
+
+    const sanitized = sanitizeConfig(config);
+
+    // Original config should not be modified
+    expect(config.nodes[0].certPath).toBe('/path/to/cert1');
+    expect(config.nodes[0].credentials.password).toBe('secret1');
+    expect(config.nodes[1].certPath).toBe('/path/to/cert2');
+    expect(config.nodes[1].credentials.password).toBe('secret2');
+
+    // Sanitized config should have redacted sensitive fields
+    expect(sanitized.nodes[0].certPath).toBe('[REDACTED]');
+    expect(sanitized.nodes[0].credentials.password).toBe('[REDACTED]');
+    expect(sanitized.nodes[1].certPath).toBe('[REDACTED]');
+    expect(sanitized.nodes[1].credentials.password).toBe('[REDACTED]');
+
+    // Non-sensitive fields should remain unchanged
+    expect(sanitized.nodes[0].name).toBe('node1');
+    expect(sanitized.nodes[1].name).toBe('node2');
   });
 });
 

@@ -3,6 +3,61 @@
  */
 
 /**
+ * Sanitize sensitive configuration data for logging
+ *
+ * @param config - The configuration object to sanitize
+ * @returns A sanitized copy of the configuration object
+ */
+export function sanitizeConfig<T extends Record<string, any>>(config: T): T {
+  if (!config) {
+    return config;
+  }
+
+  const sanitized = { ...config };
+
+  // Create a deep copy to avoid modifying the original
+  const deepCopy = (obj: any): any => {
+    if (obj === null || typeof obj !== 'object') {
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(deepCopy);
+    }
+
+    const copy: Record<string, any> = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        copy[key] = deepCopy(obj[key]);
+      }
+    }
+    return copy;
+  };
+
+  const result = deepCopy(config);
+
+  // Recursively sanitize objects
+  const sanitizeObj = (obj: Record<string, any>): void => {
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        // Sanitize based on key names that might contain sensitive information
+        if (
+          /(?:cert|macaroon|key|secret|token|password|credential|auth)/i.test(key) &&
+          typeof obj[key] === 'string'
+        ) {
+          obj[key] = '[REDACTED]';
+        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+          sanitizeObj(obj[key]);
+        }
+      }
+    }
+  };
+
+  sanitizeObj(result);
+  return result as T;
+}
+
+/**
  * Sanitize an error message by redacting sensitive information
  *
  * @param message - The error message to sanitize
@@ -161,4 +216,42 @@ export function sanitizeError(error: unknown): Error {
   }
 
   return new Error(sanitizeErrorMessage(String(error)));
+}
+
+/**
+ * Sanitize sensitive data for logging
+ * Utility function to sanitize any potentially sensitive data before logging
+ *
+ * @param data - The data to sanitize
+ * @returns Sanitized data safe for logging
+ */
+export function sanitizeForLogging(data: any): any {
+  if (!data || typeof data !== 'object') {
+    return data;
+  }
+
+  const sanitized = { ...data };
+
+  // List of sensitive fields to redact
+  const sensitiveFields = [
+    'macaroon',
+    'password',
+    'secret',
+    'token',
+    'key',
+    'cert',
+    'credential',
+    'auth',
+  ];
+
+  // Redact sensitive fields
+  for (const field of Object.keys(sanitized)) {
+    if (sensitiveFields.some((sensitive) => field.toLowerCase().includes(sensitive))) {
+      sanitized[field] = '[REDACTED]';
+    } else if (typeof sanitized[field] === 'object' && sanitized[field] !== null) {
+      sanitized[field] = sanitizeForLogging(sanitized[field]);
+    }
+  }
+
+  return sanitized;
 }

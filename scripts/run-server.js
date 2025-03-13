@@ -12,6 +12,69 @@ const path = require('path');
 const fs = require('fs');
 const dotenv = require('dotenv');
 
+/**
+ * Sanitize error messages to remove sensitive information
+ * @param {string} message - The error message to sanitize
+ * @returns {string} - The sanitized message
+ */
+function sanitizeErrorMessage(message) {
+  if (!message) {
+    return message;
+  }
+
+  // Redact certificate paths
+  let sanitized = message.replace(/\/[^\s\/]+\/[^\s\/]*cert[^\s\/]*/gi, '[REDACTED_CERT_PATH]');
+  sanitized = sanitized.replace(
+    /[a-zA-Z]:\\[^\s\\]+\\[^\s\\]*cert[^\s\\]*/gi,
+    '[REDACTED_CERT_PATH]'
+  );
+
+  // Redact macaroon paths
+  sanitized = sanitized.replace(
+    /\/[^\s\/]+\/[^\s\/]*macaroon[^\s\/]*/gi,
+    '[REDACTED_MACAROON_PATH]'
+  );
+  sanitized = sanitized.replace(
+    /[a-zA-Z]:\\[^\s\\]+\\[^\s\\]*macaroon[^\s\\]*/gi,
+    '[REDACTED_MACAROON_PATH]'
+  );
+
+  // Redact key paths
+  sanitized = sanitized.replace(/\/[^\s\/]+\/[^\s\/]*key[^\s\/]*/gi, '[REDACTED_KEY_PATH]');
+  sanitized = sanitized.replace(
+    /[a-zA-Z]:\\[^\s\\]+\\[^\s\\]*key[^\s\\]*/gi,
+    '[REDACTED_KEY_PATH]'
+  );
+
+  // Redact credential paths
+  sanitized = sanitized.replace(
+    /\/[^\s\/]+\/[^\s\/]*(?:secret|token|password|credential)[^\s\/]*/gi,
+    '[REDACTED_CREDENTIAL]'
+  );
+  sanitized = sanitized.replace(
+    /[a-zA-Z]:\\[^\s\\]+\\[^\s\\]*(?:secret|token|password|credential)[^\s\\]*/gi,
+    '[REDACTED_CREDENTIAL]'
+  );
+
+  // Redact environment variables
+  sanitized = sanitized.replace(/(?:LND_TLS_CERT_PATH|CERT_PATH)=[^\s]+/gi, '[REDACTED_CERT_PATH]');
+  sanitized = sanitized.replace(
+    /(?:LND_MACAROON_PATH|MACAROON_PATH)=[^\s]+/gi,
+    '[REDACTED_MACAROON_PATH]'
+  );
+  sanitized = sanitized.replace(/(?:KEY_PATH)=[^\s]+/gi, '[REDACTED_KEY_PATH]');
+  sanitized = sanitized.replace(
+    /(?:SECRET|TOKEN|PASSWORD|CREDENTIAL)=[^\s]+/gi,
+    '[REDACTED_CREDENTIAL]'
+  );
+
+  // Redact generic file paths
+  sanitized = sanitized.replace(/\/[^\s\/]+\/[^\s\/]+\.[a-zA-Z0-9]+/g, '[REDACTED_PATH]');
+  sanitized = sanitized.replace(/[a-zA-Z]:\\[^\s\\]+\\[^\s\\]+\.[a-zA-Z0-9]+/g, '[REDACTED_PATH]');
+
+  return sanitized;
+}
+
 // Load environment variables from .env.test file if it exists, otherwise from .env
 const envFile = fs.existsSync('.env.test') ? '.env.test' : '.env';
 dotenv.config({ path: envFile });
@@ -32,19 +95,19 @@ const tlsCertPath = process.env.LND_TLS_CERT_PATH;
 const macaroonPath = process.env.LND_MACAROON_PATH;
 
 if (!fs.existsSync(tlsCertPath)) {
-  console.error(`Error: TLS certificate file not found at: ${tlsCertPath}`);
+  console.error(`Error: TLS certificate file not found at: [REDACTED_CERT_PATH]`);
   process.exit(1);
 }
 
 if (!fs.existsSync(macaroonPath)) {
-  console.error(`Error: Macaroon file not found at: ${macaroonPath}`);
+  console.error(`Error: Macaroon file not found at: [REDACTED_MACAROON_PATH]`);
   process.exit(1);
 }
 
 // Run the server
 console.log('Starting MCP-LND server...');
-console.log(`LND Host: ${process.env.LND_HOST || 'localhost'}`);
-console.log(`LND Port: ${process.env.LND_PORT || '10009'}`);
+// Avoid logging potentially sensitive connection details
+console.log('LND connection configured');
 
 // Use ts-node to run the TypeScript file directly
 const serverProcess = spawn('npx', ['ts-node', path.resolve(__dirname, '../src/index.ts')], {
@@ -54,7 +117,7 @@ const serverProcess = spawn('npx', ['ts-node', path.resolve(__dirname, '../src/i
 
 // Handle process events
 serverProcess.on('error', (error) => {
-  console.error('Error starting server:', error);
+  console.error('Error starting server:', sanitizeErrorMessage(error.message));
   process.exit(1);
 });
 

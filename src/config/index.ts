@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { existsSync } from 'fs';
 import logger from '../utils/logger';
-import { sanitizeErrorMessage } from '../utils/sanitize';
+import { sanitizeErrorMessage, sanitizeConfig } from '../utils/sanitize';
 
 // Load environment variables
 dotenv.config();
@@ -64,7 +64,8 @@ export function getConfig(): Config {
       },
     };
 
-    logger.info('Configuration loaded successfully');
+    // Log sanitized configuration
+    logger.info(`Configuration loaded successfully: ${JSON.stringify(sanitizeConfig(config))}`);
     return config;
   } catch (error) {
     // Create a sanitized error
