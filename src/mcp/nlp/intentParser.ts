@@ -1,4 +1,4 @@
-import { Intent, IntentType } from '../../types/intent';
+import { Intent } from '../../types/intent';
 import logger from '../../utils/logger';
 
 export class IntentParser {

@@ -24,15 +24,12 @@ export function createMcpError(error: unknown, context: string): McpError {
   const errorMessage = formatError(error, context);
 
   // Log the error with sanitized message
-  logger.error(
-    {
-      error: {
-        message: sanitizeErrorMessage(error instanceof Error ? error.message : String(error)),
-      },
-      context,
+  logger.error(errorMessage, {
+    error: {
+      message: sanitizeErrorMessage(error instanceof Error ? error.message : String(error)),
     },
-    errorMessage
-  );
+    context,
+  });
 
   // Determine the appropriate error code
   let errorCode = ErrorCode.InternalError;
@@ -61,7 +58,7 @@ export function formatResponse(data: any): string {
     const sanitizedError = sanitizeErrorMessage(
       error instanceof Error ? error.message : String(error)
     );
-    logger.error({ error: { message: sanitizedError } }, 'Failed to format response');
+    logger.error('Failed to format response', { error: { message: sanitizedError } });
     return String(data);
   }
 }

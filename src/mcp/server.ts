@@ -52,7 +52,7 @@ export class McpServer {
     // Set up error handler
     this.server.onerror = (error) => {
       const sanitizedError = sanitizeError(error);
-      logger.error({ error: { message: sanitizedError.message } }, 'MCP server error');
+      logger.error('MCP server error', { error: { message: sanitizedError.message } });
     };
 
     logger.info('MCP server initialized');
@@ -86,7 +86,7 @@ export class McpServer {
           ],
         };
       } catch (error) {
-        logger.error({ error }, 'Failed to handle ListTools request');
+        logger.error('Failed to handle ListTools request', { error });
         throw createMcpError(error, 'Failed to list tools');
       }
     });
@@ -96,7 +96,7 @@ export class McpServer {
       try {
         const { name, arguments: args } = request.params;
 
-        logger.debug({ name, args }, 'Handling CallTool request');
+        logger.debug('Handling CallTool request', { name, args });
 
         if (name === 'queryChannels') {
           // Validate required arguments
@@ -123,7 +123,7 @@ export class McpServer {
 
         throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
       } catch (error) {
-        logger.error({ error, request }, 'Failed to handle CallTool request');
+        logger.error('Failed to handle CallTool request', { error, request });
 
         if (error instanceof McpError) {
           throw error;
@@ -151,7 +151,7 @@ export class McpServer {
       logger.info('MCP server started');
     } catch (error) {
       const sanitizedError = sanitizeError(error);
-      logger.fatal({ error: { message: sanitizedError.message } }, 'Failed to start MCP server');
+      logger.error('Failed to start MCP server', { error: { message: sanitizedError.message } });
       throw error;
     }
   }
@@ -166,7 +166,7 @@ export class McpServer {
       logger.info('MCP server stopped');
     } catch (error) {
       const sanitizedError = sanitizeError(error);
-      logger.error({ error: { message: sanitizedError.message } }, 'Error stopping MCP server');
+      logger.error('Error stopping MCP server', { error: { message: sanitizedError.message } });
     }
   }
 }

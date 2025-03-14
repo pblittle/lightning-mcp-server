@@ -1,17 +1,19 @@
-import { McpTool } from '@modelcontextprotocol/sdk/types.js';
 import { LndClient } from '../../lnd/client';
 import { IntentParser } from '../nlp/intentParser';
 import { ChannelQueryHandler } from '../handlers/channelQueryHandler';
 import logger from '../../utils/logger';
 import { sanitizeError } from '../../utils/sanitize';
 
-export class ChannelQueryTool implements McpTool {
+/**
+ * Tool for querying Lightning Network channels using natural language
+ */
+export class ChannelQueryTool {
   private readonly name = 'queryChannels';
   private readonly description = 'Query Lightning Network channels using natural language';
   private intentParser: IntentParser;
   private queryHandler: ChannelQueryHandler;
 
-  constructor(private readonly lndClient: LndClient) {
+  constructor(lndClient: LndClient) {
     this.intentParser = new IntentParser();
     this.queryHandler = new ChannelQueryHandler(lndClient);
   }
