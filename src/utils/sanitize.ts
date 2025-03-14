@@ -13,8 +13,6 @@ export function sanitizeConfig<T extends Record<string, any>>(config: T): T {
     return config;
   }
 
-  const sanitized = { ...config };
-
   // Create a deep copy to avoid modifying the original
   const deepCopy = (obj: any): any => {
     if (obj === null || typeof obj !== 'object') {
@@ -134,10 +132,7 @@ export function sanitizeErrorMessage(message: string): string {
   // This is a simplified version that handles the test cases
 
   // Redact certificate paths
-  let sanitizedMessage = message.replace(
-    /\/[^\s\/]+\/[^\s\/]*cert[^\s\/]*/gi,
-    '[REDACTED_CERT_PATH]'
-  );
+  let sanitizedMessage = message.replace(/\/[^\s/]+\/[^\s/]*cert[^\s/]*/gi, '[REDACTED_CERT_PATH]');
   sanitizedMessage = sanitizedMessage.replace(
     /[a-zA-Z]:\\[^\s\\]+\\[^\s\\]*cert[^\s\\]*/gi,
     '[REDACTED_CERT_PATH]'
@@ -145,7 +140,7 @@ export function sanitizeErrorMessage(message: string): string {
 
   // Redact macaroon paths
   sanitizedMessage = sanitizedMessage.replace(
-    /\/[^\s\/]+\/[^\s\/]*macaroon[^\s\/]*/gi,
+    /\/[^\s/]+\/[^\s/]*macaroon[^\s/]*/gi,
     '[REDACTED_MACAROON_PATH]'
   );
   sanitizedMessage = sanitizedMessage.replace(
@@ -155,7 +150,7 @@ export function sanitizeErrorMessage(message: string): string {
 
   // Redact key paths
   sanitizedMessage = sanitizedMessage.replace(
-    /\/[^\s\/]+\/[^\s\/]*key[^\s\/]*/gi,
+    /\/[^\s/]+\/[^\s/]*key[^\s/]*/gi,
     '[REDACTED_KEY_PATH]'
   );
   sanitizedMessage = sanitizedMessage.replace(
@@ -165,7 +160,7 @@ export function sanitizeErrorMessage(message: string): string {
 
   // Redact credential paths
   sanitizedMessage = sanitizedMessage.replace(
-    /\/[^\s\/]+\/[^\s\/]*(?:secret|token|password|credential)[^\s\/]*/gi,
+    /\/[^\s/]+\/[^\s/]*(?:secret|token|password|credential)[^\s/]*/gi,
     '[REDACTED_CREDENTIAL]'
   );
   sanitizedMessage = sanitizedMessage.replace(
@@ -190,7 +185,7 @@ export function sanitizeErrorMessage(message: string): string {
 
   // Redact generic file paths
   sanitizedMessage = sanitizedMessage.replace(
-    /\/[^\s\/]+\/[^\s\/]+\.[a-zA-Z0-9]+/g,
+    /\/[^\s/]+\/[^\s/]+\.[a-zA-Z0-9]+/g,
     '[REDACTED_PATH]'
   );
   sanitizedMessage = sanitizedMessage.replace(
