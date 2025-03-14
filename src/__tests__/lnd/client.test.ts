@@ -17,9 +17,12 @@ describe('LndClient', () => {
       macaroonPath: '/path/to/macaroon',
       host: 'localhost',
       port: '10009',
+      useMockLnd: false,
     },
     server: {
       port: 3000,
+      logLevel: 'info',
+      environment: 'test',
     },
   };
 
@@ -64,7 +67,7 @@ describe('LndClient', () => {
       expect(() => new LndClient(mockConfig)).toThrow(
         'LND connection error: TLS cert file not found'
       );
-      expect(logger.fatal).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalled();
     });
 
     test('should throw an error if macaroon file read fails', () => {
@@ -78,7 +81,7 @@ describe('LndClient', () => {
       expect(() => new LndClient(mockConfig)).toThrow(
         'LND connection error: Macaroon file not found'
       );
-      expect(logger.fatal).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalled();
     });
 
     test('should throw an error if LND authentication fails', () => {
@@ -91,7 +94,7 @@ describe('LndClient', () => {
       expect(() => new LndClient(mockConfig)).toThrow(
         'LND connection error: Authentication failed'
       );
-      expect(logger.fatal).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 

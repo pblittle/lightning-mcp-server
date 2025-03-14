@@ -45,7 +45,7 @@ export async function getWalletBalance(client: LndClient): Promise<WalletBalance
       },
     };
 
-    logger.debug({ balance: response }, 'Retrieved wallet balance');
+    logger.debug('Retrieved wallet balance', { balance: response });
     return response;
   } catch (error) {
     const sanitizedError = sanitizeError(error);
@@ -76,7 +76,7 @@ export async function getChannelBalance(client: LndClient): Promise<ChannelBalan
       },
     };
 
-    logger.debug({ balance: response }, 'Retrieved channel balance');
+    logger.debug('Retrieved channel balance', { balance: response });
     return response;
   } catch (error) {
     const sanitizedError = sanitizeError(error);
@@ -109,7 +109,7 @@ export async function getAllBalances(client: LndClient): Promise<AllBalancesResp
       },
     };
 
-    logger.debug({ balance: response }, 'Retrieved all balances');
+    logger.debug('Retrieved all balances', { balance: response });
     return response;
   } catch (error) {
     const sanitizedError = sanitizeError(error);
@@ -168,7 +168,7 @@ export async function getNodeData(client: LndClient): Promise<NodeData> {
       },
     };
 
-    logger.debug({ nodeData }, 'Retrieved node data');
+    logger.debug('Retrieved node data', { nodeData });
     return nodeData;
   } catch (error) {
     const sanitizedError = sanitizeError(error);

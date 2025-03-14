@@ -59,7 +59,7 @@ export class LndClient {
       return lnService.authenticatedLndGrpc(auth);
     } catch (error) {
       const sanitizedError = sanitizeError(error);
-      logger.fatal(`Failed to create LND connection: ${sanitizedError.message}`);
+      logger.error(`Failed to create LND connection: ${sanitizedError.message}`);
       throw new Error(`LND connection error: ${sanitizedError.message}`);
     }
   }
