@@ -109,23 +109,16 @@ These values can be set in your environment files as described above.
 
 ## Running the Server
 
-Start the development server:
+Start the server in development mode (with mock LND):
 
 ```bash
-npm run dev
+npm run mcp:dev
 ```
 
-Or build and run the production version:
+For production use with a real LND node:
 
 ```bash
-npm run build
-npm start
-```
-
-Or use the MCP server runner:
-
-```bash
-npm run mcp
+npm run mcp:prod
 ```
 
 ## MCP Server Features
@@ -209,7 +202,7 @@ Tests use Jest and follow a consistent pattern of mocking external dependencies 
 You can run the MCP server with a mocked LND connection for testing purposes without needing a real LND node:
 
 ```bash
-node scripts/mock-server.js
+npm run mcp:mock
 ```
 
 This will:
@@ -257,6 +250,36 @@ The mock server is useful for:
 - Testing the natural language query functionality in isolation
 - Developing and testing LLM applications that use the MCP server
 - Demonstrating the capabilities without a real LND node
+
+## Development
+
+To set up a development environment:
+
+1. Create a `.env.development.local` file with your specific settings, or use the mock LND setup
+2. Run the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+This will start the TypeScript server with hot reloading.
+
+## Project Scripts
+
+- `npm run build` - Build the TypeScript project
+- `npm run start` - Run the built application
+- `npm run dev` - Run in development mode with hot reloading
+- `npm test` - Run the test suite
+- `npm run lint` - Run the linter
+- `npm run format` - Format code with Prettier
+- `npm run validate` - Run all validation (lint, format check, type check)
+- `npm run mcp` - Run the MCP server
+- `npm run mcp:dev` - Run the MCP server in development mode
+- `npm run mcp:test` - Run the MCP server in test mode
+- `npm run mcp:prod` - Run the MCP server in production mode
+- `npm run mcp:mock` - Run the MCP server with a mock LND node
+- `npm run mcp:fixed-mock` - Run a simplified mock MCP server
+- `npm run mcp:inspector-test` - Run a test for the MCP Inspector
 
 ## License
 
