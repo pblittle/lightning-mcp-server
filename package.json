@@ -6,17 +6,20 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "test": "jest",
+    "dev": "NODE_ENV=development ts-node-dev --respawn --transpile-only src/index.ts",
+    "test": "NODE_ENV=test jest",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,md}\"",
     "validate": "npm run lint && npm run format:check && npm run build -- --noEmit",
     "mcp": "node run.js",
-    "mcp:mock": "npm run build && node mock-server.js",
-    "mcp:fixed-mock": "node fixed-mock-server.js",
-    "mcp:inspector-test": "node mcp-inspector-test.js"
+    "mcp:dev": "NODE_ENV=development node run.js",
+    "mcp:test": "NODE_ENV=test node run.js",
+    "mcp:prod": "NODE_ENV=production node run.js",
+    "mcp:mock": "npm run build && node scripts/mock-server.js",
+    "mcp:fixed-mock": "node scripts/mock-server.js",
+    "mcp:inspector-test": "node scripts/mcp-inspector-test.js"
   },
   "keywords": [
     "lightning",
@@ -35,11 +38,13 @@
     "dotenv": "^16.3.1",
     "ln-service": "^57.23.1",
     "pino": "^8.15.0",
-    "pino-pretty": "^10.2.0"
+    "pino-pretty": "^10.2.0",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.3",
     "@types/node": "^20.4.9",
+    "@types/winston": "^2.4.4",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "eslint": "^8.56.0",

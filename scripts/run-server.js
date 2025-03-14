@@ -4,13 +4,11 @@
  * Run the MCP-LND Server
  *
  * This script runs the actual MCP server that connects to a real LND node.
- * It requires a proper .env file with LND connection details.
  */
 
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const dotenv = require('dotenv');
 
 /**
  * Sanitize error messages to remove sensitive information
@@ -75,39 +73,8 @@ function sanitizeErrorMessage(message) {
   return sanitized;
 }
 
-// Load environment variables from .env.test file if it exists, otherwise from .env
-const envFile = fs.existsSync('.env.test') ? '.env.test' : '.env';
-dotenv.config({ path: envFile });
-console.log(`Using environment file: ${envFile}`);
-
-// Check if required environment variables are set
-const requiredVars = ['LND_TLS_CERT_PATH', 'LND_MACAROON_PATH'];
-const missingVars = requiredVars.filter((varName) => !process.env[varName]);
-
-if (missingVars.length > 0) {
-  console.error(`Error: Missing required environment variables: ${missingVars.join(', ')}`);
-  console.error('Please create a .env file based on .env.template with your LND node details.');
-  process.exit(1);
-}
-
-// Check if the files exist
-const tlsCertPath = process.env.LND_TLS_CERT_PATH;
-const macaroonPath = process.env.LND_MACAROON_PATH;
-
-if (!fs.existsSync(tlsCertPath)) {
-  console.error(`Error: TLS certificate file not found at: [REDACTED_CERT_PATH]`);
-  process.exit(1);
-}
-
-if (!fs.existsSync(macaroonPath)) {
-  console.error(`Error: Macaroon file not found at: [REDACTED_MACAROON_PATH]`);
-  process.exit(1);
-}
-
 // Run the server
 console.log('Starting MCP-LND server...');
-// Avoid logging potentially sensitive connection details
-console.log('LND connection configured');
 
 // Use ts-node to run the TypeScript file directly
 const serverProcess = spawn('npx', ['ts-node', path.resolve(__dirname, '../src/index.ts')], {
