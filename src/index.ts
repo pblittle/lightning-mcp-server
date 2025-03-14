@@ -4,13 +4,23 @@ import { createLndClient } from './lnd/client';
 import { createMcpServer } from './mcp/server';
 import { sanitizeError, sanitizeForLogging } from './utils/sanitize';
 
+/**
+ * Exit the process safely
+ * @param code Exit code
+ */
+function exitProcess(code: number): void {
+  // In test environment, process.exit is mocked by Jest
+  // In non-test environments, actually exit the process
+  process.exit(code);
+}
+
 // Global reference to the MCP server for cleanup
 let mcpServer: Awaited<ReturnType<typeof createMcpServer>> | null = null;
 
 /**
- * Main function
+ * Main application bootstrap function
  */
-async function main() {
+export async function bootstrap() {
   try {
     logger.info('Starting MCP-LND server');
 
@@ -32,12 +42,14 @@ async function main() {
     logger.error(`Failed to start application: ${sanitizedError.message}`, {
       error: sanitizeForLogging(error),
     });
-    process.exit(1);
+    exitProcess(1);
   }
 }
 
-// Start the application
-main();
+// Start the application only when this file is run directly, not when imported
+if (require.main === module) {
+  bootstrap();
+}
 
 // Handle graceful shutdown
 async function shutdown() {
@@ -52,7 +64,7 @@ async function shutdown() {
       error: sanitizeForLogging(error),
     });
   } finally {
-    process.exit(0);
+    exitProcess(0);
   }
 }
 

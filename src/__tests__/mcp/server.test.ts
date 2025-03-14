@@ -1,7 +1,11 @@
 /**
  * Test implementation of MCP server
  */
+import { jest } from '@jest/globals';
 import logger from '../../utils/logger';
+
+// Mock dependencies
+jest.mock('../../utils/logger');
 
 /**
  * MCP server configuration options
@@ -62,3 +66,22 @@ export class McpServer {
     return this.isRunning;
   }
 }
+
+// Add a simple test for the mock MCP server
+describe('Mock MCP Server', () => {
+  test('should create a server instance', () => {
+    // Arrange
+    const config: McpServerConfig = {
+      port: 3000,
+      host: 'localhost',
+      transport: 'stdio',
+    };
+
+    // Act
+    const server = new McpServer(config);
+
+    // Assert
+    expect(server).toBeDefined();
+    expect(server.isServerRunning()).toBe(false);
+  });
+});
