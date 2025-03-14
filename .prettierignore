@@ -1,0 +1,26 @@
+# Ignore build output
+dist/
+build/
+
+# Ignore node_modules
+node_modules/
+
+# Ignore coverage reports
+coverage/
+
+# Ignore logs
+*.log
+
+# Ignore environment files
+.env*
+!.env.example
+!.env.template
+
+# Ignore package-lock.json
+package-lock.json
+
+# Ignore generated files
+*.generated.*
+
+# Ignore mock data
+mock/
