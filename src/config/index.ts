@@ -1,47 +1,110 @@
-import dotenv from 'dotenv';
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import * as path from 'path';
 import logger from '../utils/logger';
 import { sanitizeErrorMessage, sanitizeConfig } from '../utils/sanitize';
+import { loadEnvironment } from './environment';
 
-// Load environment variables
-dotenv.config();
+// Load environment configuration
+loadEnvironment();
 
 /**
  * Configuration interface
  */
 export interface Config {
   lnd: {
+    /** Path to the TLS certificate file */
     tlsCertPath: string;
+    /** Path to the macaroon file for authentication */
     macaroonPath: string;
+    /** LND host address */
     host: string;
+    /** LND port number */
     port: string;
+    /** Flag indicating whether to use mock LND */
+    useMockLnd: boolean;
   };
   server: {
+    /** Server port number */
     port: number;
+    /** Application logging level */
+    logLevel: string;
+    /** Current environment (development, test, production) */
+    environment: string;
   };
 }
 
 /**
- * Validate required environment variables
+ * Sets up mock LND environment if mock mode is enabled
+ * Creates necessary certificate and macaroon files for testing
  */
-function validateEnv(): void {
-  const requiredVars = ['LND_TLS_CERT_PATH', 'LND_MACAROON_PATH'];
-  const missingVars = requiredVars.filter((varName) => !process.env[varName]);
+function setupMockLndIfNeeded(): void {
+  if (process.env.USE_MOCK_LND === 'true') {
+    // Define paths for mock files
+    const mockDir = path.resolve(process.cwd(), 'mock');
+    const mockCertPath = path.resolve(mockDir, 'mock-cert.pem');
+    const mockMacaroonPath = path.resolve(mockDir, 'mock-macaroon');
 
-  if (missingVars.length > 0) {
-    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+    // Create mock directory if it doesn't exist
+    if (!existsSync(mockDir)) {
+      mkdirSync(mockDir, { recursive: true });
+    }
+
+    // Create mock certificate if it doesn't exist
+    if (!existsSync(mockCertPath)) {
+      writeFileSync(mockCertPath, 'MOCK TLS CERTIFICATE');
+      logger.debug(`Created mock TLS certificate at ${mockCertPath}`);
+    }
+
+    // Create mock macaroon if it doesn't exist
+    if (!existsSync(mockMacaroonPath)) {
+      writeFileSync(mockMacaroonPath, 'MOCK MACAROON');
+      logger.debug(`Created mock macaroon at ${mockMacaroonPath}`);
+    }
+
+    // Set environment variables to use mock files
+    process.env.LND_TLS_CERT_PATH = mockCertPath;
+    process.env.LND_MACAROON_PATH = mockMacaroonPath;
+
+    logger.info('Using mock LND mode with generated certificate and macaroon');
+  }
+}
+
+/**
+ * Validate required configuration values
+ *
+ * Note: Basic environment variable presence is already checked by the environment module,
+ * this now focuses on application-specific validation
+ */
+function validateConfig(): void {
+  // When not in mock mode, check if required files exist
+  if (process.env.USE_MOCK_LND !== 'true') {
+    const tlsCertPath = process.env.LND_TLS_CERT_PATH;
+    const macaroonPath = process.env.LND_MACAROON_PATH;
+
+    if (!tlsCertPath || !macaroonPath) {
+      throw new Error('Missing required LND configuration (tlsCertPath or macaroonPath)');
+    }
+
+    if (!existsSync(tlsCertPath)) {
+      throw new Error(`TLS certificate file not found at: ${tlsCertPath}`);
+    }
+
+    if (!existsSync(macaroonPath)) {
+      throw new Error(`Macaroon file not found at: ${macaroonPath}`);
+    }
   }
 
-  // Validate that the files exist
-  const tlsCertPath = process.env.LND_TLS_CERT_PATH as string;
-  const macaroonPath = process.env.LND_MACAROON_PATH as string;
-
-  if (!existsSync(tlsCertPath)) {
-    throw new Error(`TLS certificate file not found at: ${tlsCertPath}`);
+  // Validate port numbers
+  const port = parseInt(process.env.PORT || '', 10);
+  if (isNaN(port) || port <= 0 || port > 65535) {
+    throw new Error(`Invalid server port: ${process.env.PORT}`);
   }
 
-  if (!existsSync(macaroonPath)) {
-    throw new Error(`Macaroon file not found at: ${macaroonPath}`);
+  if (process.env.LND_PORT) {
+    const lndPort = parseInt(process.env.LND_PORT, 10);
+    if (isNaN(lndPort) || lndPort <= 0 || lndPort > 65535) {
+      throw new Error(`Invalid LND port: ${process.env.LND_PORT}`);
+    }
   }
 }
 
@@ -50,17 +113,25 @@ function validateEnv(): void {
  */
 export function getConfig(): Config {
   try {
-    validateEnv();
+    // Setup mock LND environment if needed
+    setupMockLndIfNeeded();
 
+    // Validate configuration
+    validateConfig();
+
+    // Create configuration object
     const config: Config = {
       lnd: {
         tlsCertPath: process.env.LND_TLS_CERT_PATH as string,
         macaroonPath: process.env.LND_MACAROON_PATH as string,
         host: process.env.LND_HOST || 'localhost',
         port: process.env.LND_PORT || '10009',
+        useMockLnd: process.env.USE_MOCK_LND === 'true',
       },
       server: {
         port: parseInt(process.env.PORT || '3000', 10),
+        logLevel: process.env.LOG_LEVEL || 'info',
+        environment: process.env.NODE_ENV || 'development',
       },
     };
 
@@ -73,7 +144,7 @@ export function getConfig(): Config {
     const sanitizedMessage = sanitizeErrorMessage(errorMessage);
 
     // Log the sanitized message
-    logger.fatal(`Failed to load configuration: ${sanitizedMessage}`);
+    logger.error(`Failed to load configuration: ${sanitizedMessage}`);
 
     // Create a new error with the sanitized message to avoid exposing sensitive information
     const sanitizedError = new Error(sanitizedMessage);

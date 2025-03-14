@@ -1,106 +1,98 @@
-import { jest } from '@jest/globals';
-
-// Define types for mocked functions
-type MockedFunction<T extends (...args: any) => any> = jest.MockedFunction<T>;
-
-// Mock dependencies
-jest.mock('dotenv');
-jest.mock('../utils/logger');
-jest.mock('../config');
-jest.mock('../lnd/client');
-jest.mock('../mcp/server');
-
-// Import mocked modules
-import dotenv from 'dotenv';
-import logger from '../utils/logger';
-import { getConfig } from '../config';
-import { createLndClient } from '../lnd/client';
-import { createMcpServer } from '../mcp/server';
-import { LndClient } from '../lnd/client';
+import * as dotenv from 'dotenv';
+import { bootstrap } from '../index';
 import { McpServer } from '../mcp/server';
 
+// Mock the necessary dependencies
+jest.mock('../config', () => ({
+  config: {
+    nodeEnv: 'test',
+    port: 3000,
+    host: 'localhost',
+    transport: 'http',
+    lnd: {
+      certPath: './test-cert.pem',
+      macaroonPath: './test-macaroon',
+      host: 'localhost',
+      port: 10009,
+    },
+  },
+}));
+
+jest.mock('../mcp/server', () => {
+  const mockStart = jest.fn().mockResolvedValue(undefined);
+  const mockStop = jest.fn().mockResolvedValue(undefined);
+
+  return {
+    McpServer: jest.fn().mockImplementation(() => ({
+      start: mockStart,
+      stop: mockStop,
+    })),
+  };
+});
+
+jest.mock('../utils/logger', () => ({
+  __esModule: true,
+  default: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+    fatal: jest.fn(),
+    http: jest.fn(),
+  },
+  logError: jest.fn(),
+}));
+
+jest.mock('dotenv', () => ({
+  config: jest.fn().mockReturnValue({ parsed: {} }),
+}));
+
 describe('Application Entry Point', () => {
-  let originalProcessOn: any;
-  let processOnMock: jest.Mock;
-  let mockLndClient: Partial<LndClient>;
-  let mockMcpServer: Partial<McpServer>;
+  const originalExit = process.exit;
+
+  beforeAll(() => {
+    // Mock process.exit
+    process.exit = jest.fn() as any;
+  });
+
+  afterAll(() => {
+    // Restore process.exit
+    process.exit = originalExit;
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Mock process.on
-    originalProcessOn = process.on;
-    processOnMock = jest.fn();
-    process.on = processOnMock as any;
-
-    // Mock config and client
-    (getConfig as jest.MockedFunction<typeof getConfig>).mockReturnValue({
-      lnd: {
-        tlsCertPath: '/path/to/tls.cert',
-        macaroonPath: '/path/to/macaroon',
-        host: 'localhost',
-        port: '10009',
-      },
-      server: {
-        port: 3000,
-      },
-    });
-
-    // Create properly typed mock functions
-    const getLndMock = jest.fn();
-    const checkConnectionMock = jest.fn().mockResolvedValue(true);
-    const closeMock = jest.fn();
-
-    mockLndClient = {
-      getLnd: getLndMock,
-      checkConnection: checkConnectionMock,
-      close: closeMock,
-    };
-    (createLndClient as jest.MockedFunction<typeof createLndClient>).mockReturnValue(
-      mockLndClient as LndClient
-    );
-
-    // Create properly typed mock functions for McpServer
-    const startMock = jest.fn().mockResolvedValue(undefined);
-    const stopMock = jest.fn().mockResolvedValue(undefined);
-
-    mockMcpServer = {
-      start: startMock,
-      stop: stopMock,
-    };
-    (createMcpServer as jest.MockedFunction<typeof createMcpServer>).mockResolvedValue(
-      mockMcpServer as unknown as McpServer
-    );
-  });
-
-  afterEach(() => {
-    // Restore all mocks
-    jest.restoreAllMocks();
-
-    // Restore process.on
-    process.on = originalProcessOn;
   });
 
   test('initializes the application correctly', async () => {
-    // Import the index file to trigger initialization
-    jest.isolateModules(() => {
-      require('../index');
+    // Act
+    await bootstrap();
+
+    // Assert
+    expect(McpServer).toHaveBeenCalledTimes(1);
+    expect(McpServer).toHaveBeenCalledWith({
+      port: 3000,
+      host: 'localhost',
+      transport: 'http',
     });
 
-    // Verify environment variables are loaded
-    expect(dotenv.config).toHaveBeenCalled();
+    const mockInstance = (McpServer as jest.Mock).mock.instances[0];
+    expect(mockInstance.start).toHaveBeenCalledTimes(1);
+  });
 
-    // Verify logger is used
-    expect(logger.info).toHaveBeenCalledWith('Environment variables loaded');
+  test('handles initialization errors properly', async () => {
+    // Arrange
+    const mockError = new Error('Initialization failed');
+    (McpServer as jest.Mock).mockImplementationOnce(() => ({
+      start: jest.fn().mockRejectedValue(mockError),
+    }));
 
-    // Verify config is loaded
-    expect(getConfig).toHaveBeenCalled();
+    // Act
+    await bootstrap();
 
-    // Verify LND client is created
-    expect(createLndClient).toHaveBeenCalled();
-
-    // Verify signal handlers are registered
-    expect(processOnMock).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
-    expect(processOnMock).toHaveBeenCalledWith('SIGINT', expect.any(Function));
+    // Assert
+    const logger = require('../utils/logger').default;
+    expect(logger.error).toHaveBeenCalled();
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 });
