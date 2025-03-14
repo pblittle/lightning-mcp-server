@@ -1,13 +1,8 @@
-import dotenv from 'dotenv';
 import logger from './utils/logger';
 import { getConfig } from './config';
 import { createLndClient } from './lnd/client';
 import { createMcpServer } from './mcp/server';
 import { sanitizeError, sanitizeForLogging } from './utils/sanitize';
-
-// Load environment variables
-dotenv.config();
-logger.info('Environment variables loaded');
 
 // Global reference to the MCP server for cleanup
 let mcpServer: Awaited<ReturnType<typeof createMcpServer>> | null = null;
@@ -34,10 +29,9 @@ async function main() {
     logger.info('MCP-LND server started');
   } catch (error) {
     const sanitizedError = sanitizeError(error);
-    logger.fatal(
-      { error: sanitizeForLogging(error) },
-      `Failed to start application: ${sanitizedError.message}`
-    );
+    logger.error(`Failed to start application: ${sanitizedError.message}`, {
+      error: sanitizeForLogging(error),
+    });
     process.exit(1);
   }
 }
@@ -54,10 +48,9 @@ async function shutdown() {
     logger.info('Server shutdown complete');
   } catch (error) {
     const sanitizedError = sanitizeError(error);
-    logger.error(
-      { error: sanitizeForLogging(error) },
-      `Error during shutdown: ${sanitizedError.message}`
-    );
+    logger.error(`Error during shutdown: ${sanitizedError.message}`, {
+      error: sanitizeForLogging(error),
+    });
   } finally {
     process.exit(0);
   }

@@ -19,13 +19,83 @@ This MCP server can be used with any LLM application that supports the Model Con
    npm install
    ```
 
-3. Copy the environment template and configure it:
+3. Set up your environment (see [Environment Management](#environment-management) below)
+4. Build the project:
 
    ```bash
-   cp .env.template .env
+   npm run build
    ```
 
-4. Edit the `.env` file with your LND credentials
+## Environment Management
+
+This project uses a clean, flexible environment management system that allows both standardized environment configurations and developer-specific customizations.
+
+### Environment Files
+
+The system uses a cascading hierarchy of environment files:
+
+1. `.env.[environment].local` - Not committed, developer-specific overrides
+2. `.env.[environment]` - Committed, shared environment-specific settings
+3. `.env.local` - Not committed, shared local settings
+4. `.env` - Committed, default settings
+
+Files higher in the list take precedence over those lower in the list.
+
+### Environment Types
+
+The application supports these environment types:
+
+- `development` - For local development
+- `test` - For automated testing
+- `production` - For production use
+
+### Usage
+
+Simply set the `NODE_ENV` environment variable to switch between environments:
+
+```bash
+# Development mode
+NODE_ENV=development npm run mcp
+
+# Test mode
+NODE_ENV=test npm run mcp
+
+# Production mode
+NODE_ENV=production npm run mcp
+```
+
+Or use the convenience scripts:
+
+```bash
+# Development mode
+npm run mcp:dev
+
+# Test mode
+npm run mcp:test
+
+# Production mode
+npm run mcp:prod
+```
+
+### Local Overrides
+
+For developer-specific settings (like paths to your specific LND node):
+
+1. Create a file named `.env.[environment].local`
+2. Add your custom settings
+3. This file won't be committed to Git
+
+Example `.env.development.local`:
+
+```bash
+# My custom LND settings
+LND_TLS_CERT_PATH=/Users/myname/.lnd/tls.cert
+LND_MACAROON_PATH=/Users/myname/.lnd/data/chain/bitcoin/mainnet/readonly.macaroon
+```
+
+### Mock LND Mode
+
+Set `USE_MOCK_LND=true` in any environment file to use a mock LND setup. This is useful for development and testing without a real LND node.
 
 ## LND Configuration
 
@@ -35,14 +105,7 @@ This server connects to your LND node to retrieve information. You'll need:
 2. **Macaroon**: Use a readonly macaroon for security, typically at `~/.lnd/data/chain/bitcoin/mainnet/readonly.macaroon`
 3. **Host and Port**: Default is `localhost:10009`
 
-Update these values in your `.env` file:
-
-```bash
-LND_TLS_CERT_PATH=/path/to/your/tls.cert
-LND_MACAROON_PATH=/path/to/your/readonly.macaroon
-LND_HOST=localhost
-LND_PORT=10009
-```
+These values can be set in your environment files as described above.
 
 ## Running the Server
 
