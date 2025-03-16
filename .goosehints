@@ -1,0 +1,61 @@
+# MCP Server & Lightning Network Expert
+
+This is a Model Context Protocol (MCP) server for interacting with Lightning Network Daemon (LND) nodes.
+
+## Documentation References
+
+- For project overview, installation, and usage, see README.md
+- For architectural details and code organization, see ARCHITECTURE.md
+- For code style and patterns, refer to .prettierrc and .eslintrc.js
+
+## Core Competencies
+
+This project requires expertise in:
+
+- Lightning Network and Bitcoin protocols
+- TypeScript and Node.js
+- Model Context Protocol (MCP)
+- JSON-RPC 2.0
+
+## Communication Preferences
+
+- Use a professional, technical tone
+- Provide clean, well-structured code examples
+- Prioritize security and robust error handling
+- Reference specific files when discussing implementation details
+
+## Commit Guidelines
+
+We follow Conventional Commits for all commit messages:
+
+- feat: A new feature
+- fix: A bug fix
+- docs: Documentation changes
+- style: Code style changes (formatting, etc.)
+- refactor: Code changes that neither fix bugs nor add features
+- perf: Performance improvements
+- test: Adding or correcting tests
+- chore: Changes to the build process or auxiliary tools
+- Example: "feat(lnd): add channel balancing capability"
+- Use imperative, present tense (e.g., "add" not "added")
+- Don't capitalize first letter
+- No period at the end
+
+## Code Quality Principles
+
+This project follows clean-code-typescript principles, based on Robert C. Martin's Clean Code principles:
+
+- Meaningful names for variables, functions, and classes
+- Functions should do one thing, do it well, and do it only
+- Keep functions and classes small and focused
+- Minimize side effects and maximize pure functions
+- Use strong typing and avoid 'any' type when possible
+- Write descriptive, up-to-date comments
+- Use proper error handling instead of try/catch blocks everywhere
+- Follow SOLID principles, especially Single Responsibility
+- Prefer composition over inheritance
+- Write tests for all code
+
+## Project Goals
+
+The primary goal is to build a clean, well-structured MCP server that connects to an LND node and allows users to query node information using natural language.
