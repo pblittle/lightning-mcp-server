@@ -211,6 +211,32 @@ This will:
 2. Start the MCP server with a mock LND client that returns predefined responses
 3. Allow you to test the natural language queries without a real LND connection
 
+To test specific query types, use the provided test scripts:
+
+```bash
+# Test channel listing
+node test/channel-queries/list.js
+
+# Test channel health analysis
+node test/channel-queries/health.js
+
+# Test channel liquidity distribution
+node test/channel-queries/liquidity.js
+```
+
+These scripts demonstrate how to:
+
+- Connect to the mock server
+- Send a natural language query
+- Parse and display the response
+- Extract both the human-readable text and structured JSON data
+
+Each script focuses on a different type of query, showing how the server handles various intents:
+
+- List script: "Show me all my channels"
+- Health script: "What is the health of my channels?"
+- Liquidity script: "How is my channel liquidity distributed?"
+
 #### MCP Inspector Testing
 
 For a simplified testing experience with the MCP Inspector, you can:
