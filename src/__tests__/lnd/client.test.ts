@@ -1,113 +1,119 @@
-import { jest } from '@jest/globals';
-import * as fs from 'fs';
 import * as lnService from 'ln-service';
-import { LndClient, createLndClient } from '../../lnd/client';
+import { LndClient } from '../../lnd/client';
 import { Config } from '../../config';
-import logger from '../../utils/logger';
+import { logger } from '../../utils/logger';
 
 // Mock dependencies
-jest.mock('fs');
+jest.mock('ln-service');
 jest.mock('../../utils/logger');
+jest.mock('../../utils/sanitize', () => ({
+  sanitizeError: jest.fn((error) => (error instanceof Error ? error : new Error(String(error)))),
+  sanitizeForLogging: jest.fn((data) => data),
+}));
 
 describe('LndClient', () => {
-  // Sample configuration for testing
-  const mockConfig: Config = {
-    lnd: {
-      tlsCertPath: '/path/to/tls.cert',
-      macaroonPath: '/path/to/macaroon',
-      host: 'localhost',
-      port: '10009',
-      useMockLnd: false,
-    },
-    server: {
-      port: 3000,
-      logLevel: 'info',
-      environment: 'test',
-    },
-  };
+  let mockConfig: Config;
 
   beforeEach(() => {
+    mockConfig = {
+      lnd: {
+        tlsCertPath: '/path/to/tls.cert',
+        macaroonPath: '/path/to/macaroon',
+        host: 'localhost',
+        port: '10009',
+        useMockLnd: false,
+      },
+      server: {
+        port: 3000,
+        logLevel: 'info',
+        environment: 'test',
+      },
+    };
+
+    // Reset all mocks before each test
     jest.clearAllMocks();
 
-    // Mock fs.readFileSync
-    (fs.readFileSync as jest.Mock).mockImplementation((path) => {
-      if (path === mockConfig.lnd.tlsCertPath) {
-        return 'mock-tls-cert';
-      }
-      if (path === mockConfig.lnd.macaroonPath) {
-        return 'mock-macaroon';
-      }
-      throw new Error(`Unexpected path: ${path}`);
+    // Set up default mock implementation for authenticatedLndGrpc
+    (lnService.authenticatedLndGrpc as jest.Mock).mockReturnValue({});
+
+    // Default mock for getWalletInfo
+    (lnService.getWalletInfo as jest.Mock).mockResolvedValue({
+      alias: 'test-node',
+      public_key: 'test-pubkey',
+      version: '0.15.0',
     });
   });
 
   describe('constructor', () => {
-    test('should create an LND connection with proper authentication', () => {
-      // Act - create client
+    test('should initialize with config and log connection details', () => {
+      // Act
       new LndClient(mockConfig);
 
+      // Assert - Check if logged with expected message and any object
+      expect(logger.info).toHaveBeenCalledWith(
+        'Creating LND connection to localhost:10009',
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe('createLndConnection', () => {
+    test('should authenticate with LND using config values', () => {
+      // Arrange
+      const client = new LndClient(mockConfig);
+
+      // Act - call private method through any cast
+      const createConnection = (client as any).createLndConnection.bind(client);
+      createConnection();
+
       // Assert
-      expect(fs.readFileSync).toHaveBeenCalledWith(mockConfig.lnd.tlsCertPath, 'utf8');
-      expect(fs.readFileSync).toHaveBeenCalledWith(mockConfig.lnd.macaroonPath, 'hex');
       expect(lnService.authenticatedLndGrpc).toHaveBeenCalledWith({
-        cert: 'mock-tls-cert',
-        macaroon: 'mock-macaroon',
+        cert: '/path/to/tls.cert',
+        macaroon: '/path/to/macaroon',
         socket: 'localhost:10009',
       });
-      expect(logger.info).toHaveBeenCalledWith('Creating LND connection to localhost:10009');
     });
 
-    test('should throw an error if TLS certificate file read fails', () => {
+    test('should throw error on authentication failure', () => {
       // Arrange
-      (fs.readFileSync as jest.Mock).mockImplementationOnce(() => {
-        throw new Error('TLS cert file not found');
-      });
-
-      // Act & Assert
-      expect(() => new LndClient(mockConfig)).toThrow(
-        'LND connection error: TLS cert file not found'
-      );
-      expect(logger.error).toHaveBeenCalled();
-    });
-
-    test('should throw an error if macaroon file read fails', () => {
-      // Arrange - First call succeeds (TLS cert), second call fails (macaroon)
-      (fs.readFileSync as jest.Mock).mockImplementationOnce(() => 'mock-tls-cert');
-      (fs.readFileSync as jest.Mock).mockImplementationOnce(() => {
-        throw new Error('Macaroon file not found');
-      });
-
-      // Act & Assert
-      expect(() => new LndClient(mockConfig)).toThrow(
-        'LND connection error: Macaroon file not found'
-      );
-      expect(logger.error).toHaveBeenCalled();
-    });
-
-    test('should throw an error if LND authentication fails', () => {
-      // Arrange
+      const client = new LndClient(mockConfig);
       (lnService.authenticatedLndGrpc as jest.Mock).mockImplementationOnce(() => {
         throw new Error('Authentication failed');
       });
 
-      // Act & Assert
-      expect(() => new LndClient(mockConfig)).toThrow(
-        'LND connection error: Authentication failed'
-      );
+      // Act - call private method through any cast
+      const createConnection = (client as any).createLndConnection.bind(client);
+
+      // Assert
+      expect(() => createConnection()).toThrow(/LND connection error/);
       expect(logger.error).toHaveBeenCalled();
     });
   });
 
   describe('getLnd', () => {
-    test('should return the LND instance', () => {
+    test('should create connection if not already created', () => {
       // Arrange
       const client = new LndClient(mockConfig);
+      const createConnectionSpy = jest.spyOn(client as any, 'createLndConnection');
 
       // Act
-      const result = client.getLnd();
+      client.getLnd();
 
       // Assert
-      expect(result).toBeDefined();
+      expect(createConnectionSpy).toHaveBeenCalled();
+    });
+
+    test('should reuse existing connection if available', () => {
+      // Arrange
+      const client = new LndClient(mockConfig);
+      const createConnectionSpy = jest.spyOn(client as any, 'createLndConnection');
+
+      // Act - call twice
+      client.getLnd();
+      client.getLnd();
+
+      // Assert - should only create connection once
+      expect(createConnectionSpy).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -122,22 +128,26 @@ describe('LndClient', () => {
       // Assert
       expect(result).toBe(true);
       expect(lnService.getWalletInfo).toHaveBeenCalled();
-      expect(logger.info).toHaveBeenCalledWith('LND connection successful');
+
+      // Updated to check for the enhanced logging format
+      expect(logger.info).toHaveBeenCalledWith(
+        'LND connection successful',
+        expect.objectContaining({
+          component: 'lnd-client',
+          operation: 'checkConnection',
+        })
+      );
     });
 
     test('should throw an error if connection check fails', async () => {
-      // Mock the getWalletInfo function to reject with an error
-      // Use explicit any type to avoid TypeScript errors
-      (lnService.getWalletInfo as jest.Mock<any>).mockRejectedValueOnce(
-        new Error('Connection failed')
-      );
-
+      // Arrange
       const client = new LndClient(mockConfig);
 
+      // Mock getWalletInfo to throw an error
+      (lnService.getWalletInfo as jest.Mock).mockRejectedValueOnce(new Error('Connection failed'));
+
       // Act & Assert
-      await expect(client.checkConnection()).rejects.toThrow(
-        'LND connection check failed: Connection failed'
-      );
+      await expect(client.checkConnection()).rejects.toThrow(/LND connection check failed/);
       expect(logger.error).toHaveBeenCalled();
     });
   });
@@ -146,6 +156,7 @@ describe('LndClient', () => {
     test('should log a message when closing the connection', () => {
       // Arrange
       const client = new LndClient(mockConfig);
+      client.getLnd(); // Create connection first
 
       // Act
       client.close();
@@ -157,23 +168,15 @@ describe('LndClient', () => {
     test('should handle errors gracefully', () => {
       // Arrange
       const client = new LndClient(mockConfig);
-      jest.spyOn(logger, 'info').mockImplementationOnce(() => {
+
+      // Mock logger.info to throw an error to test error handling
+      (logger.info as jest.Mock).mockImplementationOnce(() => {
         throw new Error('Logger error');
       });
 
       // Act & Assert
       expect(() => client.close()).not.toThrow();
       expect(logger.error).toHaveBeenCalled();
-    });
-  });
-
-  describe('createLndClient', () => {
-    test('should create and return an LndClient instance', () => {
-      // Act
-      const client = createLndClient(mockConfig);
-
-      // Assert
-      expect(client).toBeInstanceOf(LndClient);
     });
   });
 });

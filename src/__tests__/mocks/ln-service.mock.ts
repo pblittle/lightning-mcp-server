@@ -19,18 +19,16 @@ const getWalletInfo = jest.fn().mockImplementation(() => {
   });
 });
 
-const getChainBalance = jest.fn().mockImplementation(() => {
-  return Promise.resolve({
-    confirmed_balance: 90000000,
-    unconfirmed_balance: 10000000,
-  });
+export const getChainBalance = jest.fn().mockResolvedValue({
+  chain_balance: 100000000,
+  confirmed_chain_balance: 90000000,
+  unconfirmed_chain_balance: 10000000,
 });
 
-const getChannelBalance = jest.fn().mockImplementation(() => {
-  return Promise.resolve({
-    channel_balance: 50000000,
-    pending_balance: 20000000,
-  });
+export const getChannelBalance = jest.fn().mockResolvedValue({
+  balance: 50000000,
+  pending_balance: 20000000,
+  inbound: 30000000,
 });
 
 // Additional mocked functions for command execution tests

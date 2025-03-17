@@ -1,39 +1,48 @@
-import { Intent } from '../../types/intent';
+import { Intent, IntentType } from '../../types/intent';
 import logger from '../../utils/logger';
 
 export class IntentParser {
   parseIntent(query: string): Intent {
-    logger.info(`Parsing intent from query: "${query}"`);
+    try {
+      let type: IntentType = 'unknown';
 
-    if (this.isChannelListQuery(query)) {
+      // Add debug logging at the start
+      logger.debug('Parsing user intent', {
+        component: 'intent-parser',
+        query: query,
+      });
+
+      if (this.isChannelListQuery(query)) {
+        type = 'channel_list';
+      } else if (this.isChannelHealthQuery(query)) {
+        type = 'channel_health';
+      } else if (this.isChannelLiquidityQuery(query)) {
+        type = 'channel_liquidity';
+      }
+
+      const intent: Intent = { type, query };
+
+      // Log the result
+      logger.info('Intent parsed successfully', {
+        component: 'intent-parser',
+        query: query,
+        intentType: type,
+      });
+
+      return intent;
+    } catch (error) {
+      // Enhanced error logging
+      logger.error('Failed to parse intent', {
+        component: 'intent-parser',
+        query: query,
+      });
+
       return {
-        type: 'channel_list',
-        parameters: {},
-        originalQuery: query,
+        type: 'unknown',
+        query,
+        error: error instanceof Error ? error : new Error(String(error)),
       };
     }
-
-    if (this.isChannelHealthQuery(query)) {
-      return {
-        type: 'channel_health',
-        parameters: {},
-        originalQuery: query,
-      };
-    }
-
-    if (this.isChannelLiquidityQuery(query)) {
-      return {
-        type: 'channel_liquidity',
-        parameters: {},
-        originalQuery: query,
-      };
-    }
-
-    return {
-      type: 'unknown',
-      parameters: {},
-      originalQuery: query,
-    };
   }
 
   private isChannelListQuery(query: string): boolean {

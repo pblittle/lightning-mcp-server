@@ -9,6 +9,9 @@ import { sanitizeError } from '../../utils/sanitize';
 export interface QueryResult {
   response: string;
   data: Record<string, any>;
+  type?: string;
+  text?: string;
+  error?: Error;
 }
 
 export class ChannelQueryHandler {
@@ -19,42 +22,76 @@ export class ChannelQueryHandler {
   }
 
   async handleQuery(intent: Intent): Promise<QueryResult> {
-    logger.info(`Handling channel query intent: ${intent.type}`);
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
     try {
+      const startTime = Date.now();
+
+      logger.info('Processing channel query', {
+        component: 'channel-handler',
+        requestId: requestId,
+        intentType: intent.type,
+        query: intent.query,
+      });
+
+      // Get channel data (common for all query types)
+      logger.debug('Fetching channel data from LND', {
+        component: 'channel-handler',
+        requestId: requestId,
+      });
+
       const channelData = await this.getChannelData();
 
+      let result: QueryResult;
+
+      // Format response based on intent type
       switch (intent.type) {
         case 'channel_list':
-          return {
+          result = {
+            type: 'channel_list',
+            text: this.formatter.formatChannelList(channelData),
             response: this.formatter.formatChannelList(channelData),
             data: channelData,
           };
-
-        case 'channel_health':
-          return {
-            response: this.formatter.formatChannelHealth(channelData),
-            data: channelData,
-          };
-
-        case 'channel_liquidity':
-          return {
-            response: this.formatter.formatChannelLiquidity(channelData),
-            data: channelData,
-          };
+          break;
 
         default:
-          return {
-            response: `I'm sorry, I don't understand how to answer: "${intent.originalQuery}"`,
+          result = {
+            type: 'unknown',
+            text: "I didn't understand that query. Try asking about your channel list, health, or liquidity.",
+            response:
+              "I didn't understand that query. Try asking about your channel list, health, or liquidity.",
             data: {},
           };
       }
+
+      const duration = Date.now() - startTime;
+      logger.info('Channel query completed', {
+        component: 'channel-handler',
+        requestId: requestId,
+        intentType: intent.type,
+        durationMs: duration,
+        channelCount: channelData.channels.length,
+      });
+
+      return result;
     } catch (error) {
-      const sanitizedError = sanitizeError(error);
-      logger.error(`Error handling channel query: ${sanitizedError.message}`);
+      logger.error('Channel query failed', {
+        component: 'channel-handler',
+        requestId: requestId,
+        intentType: intent.type,
+        query: intent.query,
+      });
 
       return {
-        response: `I encountered an error while processing your channel query: ${sanitizedError.message}`,
+        type: 'error',
+        text: `Error processing your query: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        response: `Error processing your query: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        error: error instanceof Error ? error : new Error(String(error)),
         data: {},
       };
     }

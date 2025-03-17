@@ -8,14 +8,15 @@ export type IntentType = 'channel_list' | 'channel_health' | 'channel_liquidity'
  */
 export interface Intent {
   type: IntentType;
-  parameters: Record<string, string | number | boolean>;
-  originalQuery: string;
+  query: string;
+  error?: Error;
 }
 
 /**
  * Query result with natural language response and data
  */
 export interface QueryResult {
-  response: string;
   data: Record<string, any>;
+  type?: string;
+  response?: string;
 }

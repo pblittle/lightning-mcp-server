@@ -18,26 +18,12 @@ export interface McpQueryResponse {
  * Node Data
  */
 export interface NodeData {
-  node_info: {
-    alias: string;
-    identity_pubkey: string;
-    version: string;
-    num_active_channels: number;
-    num_peers: number;
-    block_height: number;
-    synced_to_chain: boolean;
-    testnet: boolean;
-    chains: string[];
-  };
-  wallet_balance: {
-    total_balance: string | number;
-    confirmed_balance: string | number;
-    unconfirmed_balance: string | number;
-  };
-  channel_balance: {
-    balance: string | number;
-    pending_open_balance: string | number;
-  };
+  alias: string;
+  pubkey: string;
+  color: string;
+  active_channels_count: number;
+  pending_channels_count: number;
+  peers_count: number;
 }
 
 /**
@@ -58,11 +44,13 @@ export interface WalletBalanceResponse {
  * Channel Balance Response
  */
 export interface ChannelBalanceResponse {
-  balance: number;
-  pending_open_balance: number;
+  local_balance: number;
+  remote_balance: number;
+  pending_balance: number;
   formatted: {
-    balance: string;
-    pending_open_balance: string;
+    local_balance: string;
+    remote_balance: string;
+    pending_balance: string;
   };
 }
 
@@ -70,24 +58,8 @@ export interface ChannelBalanceResponse {
  * All Balances Response
  */
 export interface AllBalancesResponse {
-  onchain: {
-    total_balance: number;
-    confirmed_balance: number;
-    unconfirmed_balance: number;
-    formatted: {
-      total_balance: string;
-      confirmed_balance: string;
-      unconfirmed_balance: string;
-    };
-  };
-  channels: {
-    balance: number;
-    pending_open_balance: number;
-    formatted: {
-      balance: string;
-      pending_open_balance: string;
-    };
-  };
+  onchain: WalletBalanceResponse;
+  channels: ChannelBalanceResponse;
   total: {
     balance: number;
     formatted: string;

@@ -1,15 +1,9 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  McpError,
-  ErrorCode,
-} from '@modelcontextprotocol/sdk/types.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { LndClient } from '../lnd/client';
 import { Config } from '../config';
 import logger from '../utils/logger';
-import { createMcpError } from './utils';
 import { ChannelQueryTool } from './tools/channelQueryTool';
 import { sanitizeError } from '../utils/sanitize';
 
@@ -62,74 +56,107 @@ export class McpServer {
    * Set up MCP request handlers
    */
   private setupRequestHandlers(): void {
-    // List available tools
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+    // Register handler for listTools method
+    this.server.setRequestHandler(ListToolsRequestSchema, (_request) => {
       try {
-        logger.debug('Handling ListTools request');
+        // Generate a request ID to track this request
+        const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-        return {
-          tools: [
-            {
-              name: 'queryChannels',
-              description: 'Query Lightning Network channels using natural language',
-              inputSchema: {
-                type: 'object',
-                properties: {
-                  query: {
-                    type: 'string',
-                    description: 'Natural language query about channels',
-                  },
-                },
-                required: ['query'],
-              },
-            },
-          ],
-        };
+        logger.info('Handling listTools request', {
+          component: 'mcp-server',
+          requestId: requestId,
+          method: 'listTools',
+        });
+
+        const tools = [this.channelQueryTool.getMetadata()];
+
+        logger.debug('Returning tools list', {
+          component: 'mcp-server',
+          requestId: requestId,
+          toolCount: tools.length,
+        });
+
+        return { tools };
       } catch (error) {
-        logger.error('Failed to handle ListTools request', { error });
-        throw createMcpError(error, 'Failed to list tools');
+        logger.error('Error handling listTools request', {
+          component: 'mcp-server',
+          method: 'listTools',
+        });
+
+        throw error;
       }
     });
 
-    // Handle tool calls
+    // Register handler for callTool method
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, args } = request.params;
+      const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
       try {
-        const { name, arguments: args } = request.params;
+        logger.info('Handling callTool request', {
+          component: 'mcp-server',
+          requestId: requestId,
+          toolName: name,
+          method: 'callTool',
+        });
 
-        logger.debug('Handling CallTool request', { name, args });
-
-        if (name === 'queryChannels') {
-          // Validate required arguments
-          if (!args || !args.query || typeof args.query !== 'string') {
-            throw new McpError(ErrorCode.InvalidParams, 'Missing or invalid query parameter');
-          }
-
-          // Execute the query
-          const result = await this.channelQueryTool.executeQuery(args.query);
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: result.response,
-              },
-              {
-                type: 'application/json',
-                text: JSON.stringify(result.data, null, 2),
-              },
-            ],
-          };
-        }
-
-        throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
-      } catch (error) {
-        logger.error('Failed to handle CallTool request', { error, request });
-
-        if (error instanceof McpError) {
+        if (!name) {
+          const error = new Error('Missing tool name');
+          logger.error('Missing tool name in request', error, {
+            component: 'mcp-server',
+            requestId: requestId,
+          });
           throw error;
         }
 
-        throw createMcpError(error, 'Failed to execute tool');
+        if (name === 'channel_query') {
+          const startTime = Date.now();
+          const parsedArgs = JSON.parse(args as string);
+          const query = parsedArgs.query;
+
+          if (!query) {
+            const error = new Error('Missing query parameter');
+            logger.error('Missing query parameter', error, {
+              component: 'mcp-server',
+              requestId: requestId,
+              toolName: name,
+            });
+            throw error;
+          }
+
+          logger.info('Executing channel query', {
+            component: 'mcp-server',
+            requestId: requestId,
+            query: query,
+          });
+
+          const result = await this.channelQueryTool.executeQuery(query);
+
+          const duration = Date.now() - startTime;
+          logger.info('Channel query completed', {
+            component: 'mcp-server',
+            requestId: requestId,
+            durationMs: duration,
+          });
+
+          return result;
+        } else {
+          const error = new Error(`Unknown tool: ${name}`);
+          logger.error('Unknown tool requested', error, {
+            component: 'mcp-server',
+            requestId: requestId,
+            toolName: name,
+          });
+          throw error;
+        }
+      } catch (error) {
+        logger.error('Error handling callTool request', {
+          component: 'mcp-server',
+          requestId: requestId,
+          toolName: name,
+        });
+
+        throw error;
       }
     });
   }

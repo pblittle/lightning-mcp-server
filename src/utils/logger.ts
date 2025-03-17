@@ -1,171 +1,186 @@
+import { sanitizeForLogging } from './sanitize';
+
 /**
- * Simple logger utility without external dependencies
- * Falls back to console for logging if winston is not available
+ * Log levels supported by the application
  */
-import * as fs from 'fs';
-import * as path from 'path';
-import * as util from 'util';
-
-// Ensure logs directory exists
-try {
-  const logsDir = path.join(process.cwd(), 'logs');
-  if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
-  }
-} catch (error) {
-  console.warn('Could not create logs directory:', error);
-}
-
-// Log levels and their numeric values
 export enum LogLevel {
-  FATAL = 0,
-  ERROR = 1,
-  WARN = 2,
-  INFO = 3,
-  HTTP = 4,
-  DEBUG = 5,
+  DEBUG = 'debug',
+  INFO = 'info',
+  WARN = 'warn',
+  ERROR = 'error',
+  FATAL = 'fatal',
 }
 
-// Convert level name to numeric value
-function getLevelValue(level: string): LogLevel {
-  switch (level.toLowerCase()) {
-    case 'fatal':
-      return LogLevel.FATAL;
-    case 'error':
-      return LogLevel.ERROR;
-    case 'warn':
-      return LogLevel.WARN;
-    case 'info':
-      return LogLevel.INFO;
-    case 'http':
-      return LogLevel.HTTP;
+/**
+ * Interface for structured metadata in log entries
+ */
+export interface LogMetadata {
+  component?: string;
+  operation?: string;
+  requestId?: string;
+  durationMs?: number;
+  [key: string]: any;
+}
+
+/**
+ * Determines the current log level from environment variables
+ * Defaults to INFO if not specified
+ */
+function getLogLevel(): LogLevel {
+  const envLogLevel = process.env.LOG_LEVEL?.toLowerCase();
+
+  switch (envLogLevel) {
     case 'debug':
       return LogLevel.DEBUG;
+    case 'info':
+      return LogLevel.INFO;
+    case 'warn':
+      return LogLevel.WARN;
+    case 'error':
+      return LogLevel.ERROR;
+    case 'fatal':
+      return LogLevel.FATAL;
     default:
       return LogLevel.INFO;
   }
 }
 
-// Determine appropriate log level based on environment
-function getLogLevel(): LogLevel {
-  const env = process.env.NODE_ENV || 'development';
-  const configuredLevel = process.env.LOG_LEVEL || (env === 'development' ? 'debug' : 'warn');
-  return getLevelValue(configuredLevel);
-}
-
-// Current configured log level
-const currentLevel = getLogLevel();
-
 /**
  * Formats a log message with timestamp and level
  */
-function formatMessage(level: string, message: string): string {
+function formatLogMessage(level: string, message: string): string {
   const timestamp = new Date().toISOString();
-  return `${timestamp} [${level.toUpperCase()}] ${message}`;
+  return `[${timestamp}] [${level}] ${message}`;
 }
 
 /**
- * Safely converts any value to a string, handling circular references
+ * Safely converts an object to JSON string, handling circular references
  */
-export function safeStringify(obj: unknown): string {
-  if (typeof obj === 'string') return obj;
-  if (obj === null) return 'null';
-  if (obj === undefined) return 'undefined';
-
-  try {
-    // Use Node's util.inspect to handle circular references
-    if (typeof obj === 'object') {
-      return util.inspect(obj, {
-        depth: 5,
-        colors: false,
-        maxArrayLength: 100,
-        breakLength: Infinity,
-      });
+function safeStringify(obj: unknown): string {
+  const seen = new Set();
+  return JSON.stringify(obj, (_, value) => {
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return '[Circular Reference]';
+      }
+      seen.add(value);
     }
-    return String(obj);
+    return value;
+  });
+}
+
+/**
+ * Writes a log entry to the console
+ */
+function writeLog(level: LogLevel, levelName: string, message: string, meta?: LogMetadata): void {
+  try {
+    // Only log if the current level is appropriate
+    const currentLevel = getLogLevel();
+    const levelPriority = {
+      [LogLevel.DEBUG]: 0,
+      [LogLevel.INFO]: 1,
+      [LogLevel.WARN]: 2,
+      [LogLevel.ERROR]: 3,
+      [LogLevel.FATAL]: 4,
+    };
+
+    if (levelPriority[level] < levelPriority[currentLevel]) {
+      return;
+    }
+
+    // Format the message
+    const formattedMessage = formatLogMessage(levelName, message);
+
+    // Add metadata if present
+    const metaString = meta ? ` ${safeStringify(sanitizeForLogging(meta))}` : '';
+
+    // Use the appropriate console method
+    const consoleMethod = level === LogLevel.ERROR || level === LogLevel.FATAL ? 'error' : 'log';
+    console[consoleMethod](formattedMessage + metaString);
   } catch (error) {
-    return `[Unstringifiable Object: ${error instanceof Error ? error.message : String(error)}]`;
+    console.error(`[${new Date().toISOString()}] [ERROR] Failed to log: ${error}`);
   }
 }
 
 /**
- * Writes a log message to the console and file
+ * Logger object with enhanced capabilities
  */
-function writeLog(levelValue: LogLevel, levelName: string, message: string, meta?: unknown): void {
-  // Only log if the level is at or below the current level
-  if (levelValue > currentLevel) return;
+export const logger = {
+  /**
+   * Log a debug message
+   */
+  debug(message: string, meta?: LogMetadata): void {
+    writeLog(LogLevel.DEBUG, 'DEBUG', message, meta);
+  },
 
-  // Format message with metadata if provided
-  let fullMessage = message;
-  if (meta !== undefined) {
-    fullMessage += ' ' + safeStringify(meta);
-  }
+  /**
+   * Log an informational message
+   */
+  info(message: string, meta?: LogMetadata): void {
+    writeLog(LogLevel.INFO, 'INFO', message, meta);
+  },
 
-  // Format with timestamp
-  const formattedMessage = formatMessage(levelName, fullMessage);
+  /**
+   * Log a warning message
+   */
+  warn(message: string, meta?: LogMetadata): void {
+    writeLog(LogLevel.WARN, 'WARN', message, meta);
+  },
 
-  // Log to console with color
-  switch (levelValue) {
-    case LogLevel.FATAL:
-      console.error('\x1b[41m\x1b[37m%s\x1b[0m', formattedMessage); // White on Red BG
-      break;
-    case LogLevel.ERROR:
-      console.error('\x1b[31m%s\x1b[0m', formattedMessage); // Red
-      break;
-    case LogLevel.WARN:
-      console.warn('\x1b[33m%s\x1b[0m', formattedMessage); // Yellow
-      break;
-    case LogLevel.INFO:
-      console.info('\x1b[32m%s\x1b[0m', formattedMessage); // Green
-      break;
-    case LogLevel.HTTP:
-      console.log('\x1b[35m%s\x1b[0m', formattedMessage); // Magenta
-      break;
-    case LogLevel.DEBUG:
-      console.debug('\x1b[36m%s\x1b[0m', formattedMessage); // Cyan
-      break;
-  }
+  /**
+   * Log an error message
+   * Can be called either as:
+   * - error(message)
+   * - error(message, error)
+   * - error(message, meta)
+   * - error(message, error, meta)
+   */
+  error(message: string, errorOrMeta?: Error | LogMetadata, meta?: LogMetadata): void {
+    // Handle the different call patterns
+    let errorMeta: LogMetadata = {};
 
-  // Also log to file
-  try {
-    const filePath = path.join(process.cwd(), 'logs', 'application.log');
-    fs.appendFileSync(filePath, formattedMessage + '\n');
-
-    // For errors and fatal errors, also log to error-specific file
-    if (levelValue === LogLevel.ERROR || levelValue === LogLevel.FATAL) {
-      const errorPath = path.join(process.cwd(), 'logs', 'error.log');
-      fs.appendFileSync(errorPath, formattedMessage + '\n');
+    if (errorOrMeta instanceof Error) {
+      // error(message, error, meta)
+      errorMeta = {
+        ...meta,
+        error: {
+          name: errorOrMeta.name,
+          message: errorOrMeta.message,
+          stack: errorOrMeta.stack,
+        },
+      };
+    } else if (errorOrMeta && typeof errorOrMeta === 'object') {
+      // error(message, meta)
+      errorMeta = errorOrMeta;
     }
-  } catch (error) {
-    console.error('Failed to write log to file:', error);
-  }
-}
 
-// Logger object with methods for each log level
-const logger = {
-  fatal: (message: string, meta?: unknown) => writeLog(LogLevel.FATAL, 'fatal', message, meta),
-  error: (message: string, meta?: unknown) => writeLog(LogLevel.ERROR, 'error', message, meta),
-  warn: (message: string, meta?: unknown) => writeLog(LogLevel.WARN, 'warn', message, meta),
-  info: (message: string, meta?: unknown) => writeLog(LogLevel.INFO, 'info', message, meta),
-  http: (message: string, meta?: unknown) => writeLog(LogLevel.HTTP, 'http', message, meta),
-  debug: (message: string, meta?: unknown) => writeLog(LogLevel.DEBUG, 'debug', message, meta),
+    writeLog(LogLevel.ERROR, 'ERROR', message, errorMeta);
+  },
+
+  /**
+   * Log a fatal error message
+   */
+  fatal(message: string, errorOrMeta?: Error | LogMetadata, meta?: LogMetadata): void {
+    let errorMeta: LogMetadata = {};
+
+    if (errorOrMeta instanceof Error) {
+      // fatal(message, error, meta)
+      errorMeta = {
+        ...meta,
+        error: {
+          name: errorOrMeta.name,
+          message: errorOrMeta.message,
+          stack: errorOrMeta.stack,
+        },
+      };
+    } else if (errorOrMeta && typeof errorOrMeta === 'object') {
+      // fatal(message, meta)
+      errorMeta = errorOrMeta;
+    }
+
+    writeLog(LogLevel.FATAL, 'FATAL', message, errorMeta);
+  },
 };
 
-/**
- * Log an error with additional context
- * Properly formats Error objects
- */
-export function logError(message: string, error: unknown): void {
-  if (error instanceof Error) {
-    logger.error(message, {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    });
-  } else {
-    logger.error(`${message}: ${safeStringify(error)}`);
-  }
-}
-
-// Export the logger as default
+// For convenience in importing
 export default logger;
