@@ -80,7 +80,13 @@ The `nlp` module is responsible for understanding natural language queries:
 ### 5. MCP Server and Tools
 
 - `server.ts`: Sets up the MCP server using the official SDK
+  - Uses `setRequestHandler` with schema objects from `@modelcontextprotocol/sdk/types.js`
+  - Handles `ListToolsRequestSchema` and `CallToolRequestSchema` requests
+  - Provides proper error handling and logging
 - `tools/channelQueryTool.ts`: Implements the natural language query tool
+  - Exposes metadata for tool discovery
+  - Processes natural language queries through the intent parser
+  - Returns both human-readable text and structured data
 
 ### 6. Utilities
 
@@ -191,3 +197,30 @@ The server requires the following environment variables:
 - `LND_MACAROON_PATH`: Path to the LND macaroon file
 - `LND_HOST`: LND host (default: localhost)
 - `LND_PORT`: LND port (default: 10009)
+
+## Development Notes
+
+### MCP SDK Integration
+
+The server integrates with the MCP SDK using:
+
+- `Server` class from `@modelcontextprotocol/sdk/server/index.js`
+- `StdioServerTransport` for communication
+- Request schemas from `@modelcontextprotocol/sdk/types.js`
+
+When updating the MCP SDK, be aware that the API may change. Key integration points:
+
+- Request handler registration using `setRequestHandler`
+- Request schema validation
+- Response formatting
+
+### Type Definitions
+
+The project uses several key type definitions:
+
+- `Intent`: Represents the parsed user intent with type, query, and optional error
+- `QueryResult`: Represents the result of a query with response text and structured data
+- `Channel`: Represents LND channel data
+- `ChannelSummary`: Represents aggregated channel statistics
+
+Ensure consistency between these types across different modules to prevent TypeScript errors.
