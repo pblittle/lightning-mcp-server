@@ -1,312 +1,305 @@
 # LND MCP Server
 
-A [Model Context Protocol](https://modelcontextprotocol.io) (MCP)-compatible server for interacting with your [Lightning Network Daemon](https://docs.lightning.engineering/lightning-network-tools/lnd) (LND) node. This server provides a natural language interface to query your LND node through the Model Context Protocol, allowing AI assistants to safely interact with your node data.
+The LND MCP Server is an open-source, well-structured Model Context Protocol (MCP) server that connects to your Lightning Network Daemon (LND) node. It enables natural language queries to access node information, providing clear insights for anyone needing visibility into their LND nodes—from operators to technical stakeholders.
 
-This MCP server can be used with any LLM application that supports the Model Context Protocol, including Block Goose, Claude, and OpenAI-based applications.
+> **MVP Notice:** This initial release is an MVP that currently supports only channel data. Additional major use cases will be introduced once the core functionality has been thoroughly tested and refined.
 
-## Prerequisites
+Furthermore, this MCP server can be used with any LLM application that supports the Model Context Protocol, including Block Goose, Claude, and OpenAI-based applications.
 
-- Node.js (v14 or later)
-- npm (v6 or later)
-- Access to an LND node (local or remote)
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Installation](#installation)
+- [Environment Configuration](#environment-configuration)
+- [Getting Started](#getting-started)
+- [Usage Examples](#usage-examples)
+- [Optional: MCP Inspector for Testing](#optional-mcp-inspector-for-testing)
+- [API Documentation](#api-documentation)
+- [Architecture Overview](#architecture-overview)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Overview
+
+The MCP-LND Server bridges the gap between the technical details of your LND node and the operational needs of its users. By leveraging natural language processing, it translates everyday queries into actionable insights. This means you can ask questions like:
+
+- "Show me all my channels"
+- "What is the health of my channels?"
+- "How is my channel liquidity distributed?"
+
+The server fetches the required data from the LND node and formats the response into both a human-readable summary and structured JSON, making it ideal for both manual review and automated processing.
+
+> **Note:** As an MVP, the current implementation focuses exclusively on channel data. Future updates will expand support to include additional types of LND node queries as the core is further tested and stabilized.
+
+---
+
+## Features
+
+- **Natural Language Query Interface:** Ask simple, conversational questions about your LND node.
+- **Secure LND Integration:** Connects to your LND node using TLS certificates and macaroons.
+- **Dual-Format Responses:** Provides both clear textual summaries and machine-friendly JSON data.
+- **Clean, Modular Architecture:** Designed for maintainability and easy extension.
+- **MVP Focus:** Currently supports channel data queries, with plans for future expansion.
+- **Mock LND Mode:** Supports development and testing without requiring a live LND node.
+- **Extensible API:** Easily add new query types and natural language processing features.
+- **LLM Compatibility:** Can be used with any LLM application that supports the Model Context Protocol, including Block Goose, Claude, and OpenAI-based applications.
+
+---
 
 ## Installation
 
-1. Clone the repository
-2. Install dependencies:
+### Prerequisites
+
+- **Node.js:** Version 14 or later.
+- **npm:** Version 6 or later.
+- **LND Node Access:** Ensure you have a running LND node. You will need:
+  - A valid TLS certificate (typically found at `~/.lnd/tls.cert`)
+  - A read-only macaroon (commonly located at `~/.lnd/data/chain/bitcoin/mainnet/readonly.macaroon`)
+- **Environment Variables:** Properly configure your LND connection details.
+
+### Steps
+
+1. **Clone the Repository:**
+
+   ```bash
+   git clone https://github.com/pblittle/mcp-server-lnd.git
+   cd mcp-server-lnd
+   ```
+
+2. **Install Dependencies:**
 
    ```bash
    npm install
    ```
 
-3. Set up your environment (see [Environment Management](#environment-management) below)
-4. Build the project:
+3. **Build the Project:**
 
    ```bash
    npm run build
    ```
 
-## Environment Management
+---
 
-This project uses a clean, flexible environment management system that allows both standardized environment configurations and developer-specific customizations.
+## Environment Configuration
 
-### Environment Files
+The server uses a layered environment configuration to support different deployment scenarios (development, testing, production). Create an `.env` file (or an environment-specific variant) in the project root with the following variables:
 
-The system uses a cascading hierarchy of environment files:
+```bash
+# LND Node Configuration
+LND_TLS_CERT_PATH=/path/to/your/tls.cert
+LND_MACAROON_PATH=/path/to/your/readonly.macaroon
+LND_HOST=localhost
+LND_PORT=10009
 
-1. `.env.[environment].local` - Not committed, developer-specific overrides
-2. `.env.[environment]` - Committed, shared environment-specific settings
-3. `.env.local` - Not committed, shared local settings
-4. `.env` - Committed, default settings
+# Server Configuration
+PORT=3000
+LOG_LEVEL=info
 
-Files higher in the list take precedence over those lower in the list.
+# Set to true to use a mock LND node (useful for development/testing)
+USE_MOCK_LND=false
+```
 
-### Environment Types
+For testing, you may also use the provided `.env.test` file.
 
-The application supports these environment types:
+---
 
-- `development` - For local development
-- `test` - For automated testing
-- `production` - For production use
+## Getting Started
+
+Users can get started quickly by using the provided scripts and mock environment:
+
+1. **Run in Development Mode (with Mock LND):**
+
+   ```bash
+   npm run mcp:dev
+   ```
+
+2. **For Production (with a Real LND Node):**
+
+   ```bash
+   npm run mcp:prod
+   ```
+
+3. **Using the Mock Server:**
+
+   For testing purposes, launch the server with a mocked LND connection:
+
+   ```bash
+   npm run mcp:mock
+   ```
+
+The server will initialize and listen for JSON-RPC requests over standard input/output, making it compatible with MCP-compatible LLMs and inspection tools.
+
+---
+
+## Usage Examples
+
+Once the server is running, you can interact with it using natural language queries. Here are a few examples:
+
+- **List Channels:**
+
+  ```bash
+  node test/real-queries/list.js
+  # Or interact via an MCP-compatible interface:
+  # "Show me all my channels"
+  ```
+
+- **Check Channel Health:**
+
+  ```bash
+  node test/real-queries/health.js
+  # Or simply ask:
+  # "What is the health of my channels?"
+  ```
+
+- **Analyze Channel Liquidity:**
+
+  ```bash
+  node test/real-queries/liquidity.js
+  # Or ask:
+  # "How is my channel liquidity distributed?"
+  ```
+
+### Example Output
+
+Below is an example output from running the channel list test:
+
+```plaintext
+node test/channel-queries/list.js
+Sending query: "Show me all my channels"
+Waiting for response...
+
+Response from server:
+--------------------------------------------------
+Your node has 5 channels with a total capacity of 0.05000000 BTC (5,000,000 sats). 4 channels are active and 1 is inactive.
+
+Your largest channels:
+1. ACINQ: 0.02000000 BTC (2,000,000 sats) (active)
+2. Bitrefill: 0.01000000 BTC (1,000,000 sats) (active)
+3. LightningTipBot: 0.00800000 BTC (800,000 sats) (active)
+4. Wallet of Satoshi: 0.00700000 BTC (700,000 sats) (active)
+5. LN+: 0.00500000 BTC (500,000 sats) (inactive)
+
+JSON Data:
+--------------------------------------------------
+{
+  "channels": [
+    {
+      "capacity": 2000000,
+      "local_balance": 1000000,
+      "remote_balance": 1000000,
+      "channel_point": "txid:0",
+      "active": true,
+      "remote_pubkey": "03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f",
+      "remote_alias": "ACINQ"
+    }
+  ],
+  "summary": {
+    "totalCapacity": 5000000,
+    "totalLocalBalance": 2500000,
+    "totalRemoteBalance": 2500000,
+    "activeChannels": 4,
+    "inactiveChannels": 1,
+    "averageCapacity": 1000000,
+    "healthyChannels": 4,
+    "unhealthyChannels": 1
+  }
+}
+```
+
+---
+
+## Optional: MCP Inspector for Testing
+
+For enhanced testing and exploration, you can optionally install [MCP Inspector](https://www.npmjs.com/package/@modelcontextprotocol/inspector). This tool provides a user-friendly web interface to connect to the MCP server, list available tools, and experiment with natural language queries.
+
+### Installation
+
+```bash
+npm install -g @modelcontextprotocol/inspector
+```
 
 ### Usage
 
-Simply set the `NODE_ENV` environment variable to switch between environments:
-
-```bash
-# Development mode
-NODE_ENV=development npm run mcp
-
-# Test mode
-NODE_ENV=test npm run mcp
-
-# Production mode
-NODE_ENV=production npm run mcp
-```
-
-Or use the convenience scripts:
-
-```bash
-# Development mode
-npm run mcp:dev
-
-# Test mode
-npm run mcp:test
-
-# Production mode
-npm run mcp:prod
-```
-
-### Local Overrides
-
-For developer-specific settings (like paths to your specific LND node):
-
-1. Create a file named `.env.[environment].local`
-2. Add your custom settings
-3. This file won't be committed to Git
-
-Example `.env.development.local`:
-
-```bash
-# My custom LND settings
-LND_TLS_CERT_PATH=/Users/myname/.lnd/tls.cert
-LND_MACAROON_PATH=/Users/myname/.lnd/data/chain/bitcoin/mainnet/readonly.macaroon
-```
-
-### Mock LND Mode
-
-Set `USE_MOCK_LND=true` in any environment file to use a mock LND setup. This is useful for development and testing without a real LND node.
-
-## LND Configuration
-
-This server connects to your LND node to retrieve information. You'll need:
-
-1. **TLS Certificate**: Typically located at `~/.lnd/tls.cert`
-2. **Macaroon**: Use a readonly macaroon for security, typically at `~/.lnd/data/chain/bitcoin/mainnet/readonly.macaroon`
-3. **Host and Port**: Default is `localhost:10009`
-
-These values can be set in your environment files as described above.
-
-## Running the Server
-
-Start the server in development mode (with mock LND):
-
-```bash
-npm run mcp:dev
-```
-
-For production use with a real LND node:
-
-```bash
-npm run mcp:prod
-```
-
-## MCP Server Features
-
-### Natural Language LND Queries
-
-The MCP server provides a powerful natural language query interface for your LND node. This allows you to interact with your node using simple, conversational language instead of remembering specific commands and parameters.
-
-#### Currently Supported: Channel Queries
-
-The first implementation focuses on comprehensive channel queries:
-
-- "Show me all my channels"
-- "What's the health of my channels?"
-- "How is my channel liquidity distributed?"
-
-These queries provide detailed information about your channels, including capacity, balance, status, health analysis, and liquidity distribution.
-
-#### Future Expansions
-
-The architecture is designed for easy expansion to include:
-
-- **Node queries**: Information about connected nodes, network position, etc.
-- **Transaction queries**: Payment history, routing information, fee analysis
-- **Network queries**: Network graph insights, route planning, path discovery
-
-#### Benefits
-
-- **Intuitive**: No need to remember specific command syntax
-- **Contextual**: Responses are formatted in an easy-to-understand way
-- **Comprehensive**: Get detailed information with simple queries
-- **Flexible**: Multiple ways to ask for the same information
-- **Expandable**: Architecture designed to add more query capabilities
-
-## Testing
-
-### Channel Query Tests
-
-Test the natural language channel query functionality:
-
-```bash
-# Start the mock server
-node scripts/mock-server.js
-
-# In another terminal, run the test scripts
-node test/channel-queries/list.js
-node test/channel-queries/health.js
-node test/channel-queries/liquidity.js
-```
-
-Each test script demonstrates a different type of natural language query:
-
-1. **Channel List**: Shows all channels with capacity and status
-2. **Channel Health**: Identifies inactive or problematic channels
-3. **Liquidity Distribution**: Shows the balance between local and remote liquidity
-
-### Automated Tests
-
-Run the test suite:
-
-```bash
-npm test
-```
-
-Or use the Makefile:
-
-```bash
-make test
-```
-
-The test suite includes:
-
-- Unit tests for LND client connection
-- Unit tests for natural language processing and query handling
-- Mocked LND responses for deterministic testing
-
-Tests use Jest and follow a consistent pattern of mocking external dependencies while testing the full integration between components. For more details on the testing strategy, see the [Architecture documentation](./ARCHITECTURE.md#4-testing-strategy).
-
-### Testing with Mock Server
-
-You can run the MCP server with a mocked LND connection for testing purposes without needing a real LND node:
-
-```bash
-npm run mcp:mock
-```
-
-This will:
-
-1. Create mock TLS certificate and macaroon files in a `mock` directory
-2. Start the MCP server with a mock LND client that returns predefined responses
-3. Allow you to test the natural language queries without a real LND connection
-
-To test specific query types, use the provided test scripts:
-
-```bash
-# Test channel listing
-node test/channel-queries/list.js
-
-# Test channel health analysis
-node test/channel-queries/health.js
-
-# Test channel liquidity distribution
-node test/channel-queries/liquidity.js
-```
-
-These scripts demonstrate how to:
-
-- Connect to the mock server
-- Send a natural language query
-- Parse and display the response
-- Extract both the human-readable text and structured JSON data
-
-Each script focuses on a different type of query, showing how the server handles various intents:
-
-- List script: "Show me all my channels"
-- Health script: "What is the health of my channels?"
-- Liquidity script: "How is my channel liquidity distributed?"
-
-#### MCP Inspector Testing
-
-For a simplified testing experience with the MCP Inspector, you can:
-
-1. Install the MCP Inspector if you haven't already:
+1. **Start the MCP Server (e.g., in mock mode):**
 
    ```bash
-   npm install -g @modelcontextprotocol/inspector
+   npm run mcp:mock
    ```
 
-2. Start the mock server:
-
-   ```bash
-   node scripts/mock-server.js
-   ```
-
-3. In another terminal, run the MCP Inspector:
+2. **Launch MCP Inspector:**
 
    ```bash
    npx @modelcontextprotocol/inspector
    ```
 
-4. In the MCP Inspector web interface:
+3. **Connect via the Web Interface:**
+   - Click "Connect" in the top right.
+   - Set the transport type to "stdio".
+   - Provide the path to your `scripts/mock-server.js` file.
+   - Click "Connect" to start interacting with your MCP server.
 
-   - Click "Connect" in the top right
-   - Set the transport type to "stdio"
-   - Set the command to the path to your `scripts/mock-server.js` file
-   - Click "Connect"
+This step is optional and intended for developers who want an interactive testing experience.
 
-5. Once connected, you can:
-   - List available tools
-   - Try natural language queries
-   - See the human-friendly responses and structured data
+---
 
-The mock server is useful for:
+## API Documentation
 
-- Testing the natural language query functionality in isolation
-- Developing and testing LLM applications that use the MCP server
-- Demonstrating the capabilities without a real LND node
+The MCP-LND Server exposes a natural language processing API that parses user queries and returns node information. The main components are:
 
-## Development
+### Intent Parser
 
-To set up a development environment:
+- **Module:** `src/mcp/nlp/intentParser.ts`
+- **Function:** `parseIntent(query: string): Intent`
+- **Description:** Processes a natural language query and determines the user’s intent (e.g., channel list, channel health, channel liquidity).
 
-1. Create a `.env.development.local` file with your specific settings, or use the mock LND setup
-2. Run the development server:
+### Channel Query Handler
 
-   ```bash
-   npm run dev
-   ```
+- **Module:** `src/mcp/handlers/channelQueryHandler.ts`
+- **Function:** `handleQuery(intent: Intent): Promise<QueryResult>`
+- **Description:** Fetches the appropriate channel data from the LND node based on the parsed intent and returns a formatted result.
 
-This will start the TypeScript server with hot reloading.
+### Channel Query Tool
 
-## Project Scripts
+- **Module:** `src/mcp/tools/channelQueryTool.ts`
+- **Function:** `executeQuery(query: string): Promise<{ response: string; data: Record<string, any> }>`
+- **Description:** Integrates the intent parser and query handler to process natural language queries end-to-end.
 
-- `npm run build` - Build the TypeScript project
-- `npm run start` - Run the built application
-- `npm run dev` - Run in development mode with hot reloading
-- `npm test` - Run the test suite
-- `npm run lint` - Run the linter
-- `npm run format` - Format code with Prettier
-- `npm run validate` - Run all validation (lint, format check, type check)
-- `npm run mcp` - Run the MCP server
-- `npm run mcp:dev` - Run the MCP server in development mode
-- `npm run mcp:test` - Run the MCP server in test mode
-- `npm run mcp:prod` - Run the MCP server in production mode
-- `npm run mcp:mock` - Run the MCP server with a mock LND node
-- `npm run mcp:fixed-mock` - Run a simplified mock MCP server
-- `npm run mcp:inspector-test` - Run a test for the MCP Inspector
+Developers can extend these modules to add support for additional query types or refine natural language processing behavior.
+
+---
+
+## Architecture Overview
+
+The project follows a clean, modular architecture designed for maintainability and scalability. Key aspects include:
+
+- **Separation of Concerns:** Divided into modules for configuration, LND integration, natural language processing, request handling, and utilities.
+- **Robust Error Handling:** Comprehensive logging and error sanitization ensure secure and reliable operation.
+- **Testability:** Extensive unit and integration tests are included, with support for both real and mock LND node interactions.
+- **Extensibility:** Designed to easily incorporate additional query types and functionality.
+
+For a detailed explanation, refer to [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+---
+
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. **Fork the Repository:** Create your own branch for new features or bug fixes.
+2. **Follow Code Standards:** Adhere to the established coding standards and file structure.
+3. **Write Tests:** Ensure that new code is covered by tests.
+4. **Commit Messages:** Use [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat: add new channel query feature`).
+5. **Submit a Pull Request:** Describe your changes and the problem they solve.
+
+For more detailed instructions, see the [CONTRIBUTING.md](./CONTRIBUTING.md) (if available) or open an issue.
+
+---
 
 ## License
 
-[MIT](./LICENSE)
+This project is licensed under the [MIT License](./LICENSE). See the LICENSE file for details.
