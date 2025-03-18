@@ -1,226 +1,153 @@
 # LND MCP Server Architecture
 
-This document outlines the architecture for a clean, focused MCP server that connects to an LND node and allows users to query node data using natural language.
+This document provides a comprehensive architectural overview of the LND MCP Server—a clean, well-structured server that connects to an LND node and enables users to query node information using natural language. It serves both as a technical reference for developers and as an onboarding tool for new contributors.
 
-## Overview
+---
 
-The LND MCP server is designed to:
+## 1. High-Level Architectural Overview
 
-1. Connect securely to an LND node using proper authentication
-2. Implement MCP tools for natural language queries of LND data
-3. Process natural language to understand user intent
-4. Follow best practices for error handling, logging, and configuration
-5. Be well-tested and maintainable
+The MCP-LND Server is designed to bridge the gap between complex LND node data and user-friendly, natural language queries. The core workflow can be summarized as follows:
 
-## Architecture
+1. **Input:** A user (or LLM application) sends a natural language query.
+2. **NLP Processing:** The server parses the query to determine user intent.
+3. **Data Fetching:** Based on the identified intent, the server retrieves relevant channel or node data from the connected LND node.
+4. **Response Formatting:** The data is formatted into both human-readable text and structured JSON.
+5. **Output:** The response is returned via a JSON-RPC interface over standard input/output.
 
-The architecture follows clean architecture principles with clear separation of concerns:
+Below is a Mermaid diagram illustrating the high-level data flow:
 
-```plaintext
-src/
-├── config/                  # Configuration management
-│   └── index.ts             # Load and validate environment variables
-│
-├── lnd/                     # LND integration
-│   ├── client.ts            # LND client setup and connection
-│   └── queries.ts           # Channel and other query functions
-│
-├── mcp/                     # MCP server implementation
-│   ├── server.ts            # MCP server setup
-│   ├── formatters/          # Data formatters
-│   │   └── channelFormatter.ts  # Format channel data into human-readable responses
-│   ├── handlers/            # Request handlers
-│   │   └── channelQueryHandler.ts  # Handle channel-related queries
-│   ├── nlp/                 # Natural language processing
-│   │   └── intentParser.ts  # Parse natural language into intents
-│   └── tools/               # MCP tools
-│       └── channelQueryTool.ts  # Natural language channel query tool
-│
-├── types/                   # Type definitions
-│   ├── index.ts             # Shared type interfaces
-│   ├── channel.ts           # Channel-related types
-│   └── intent.ts            # Intent-related types
-│
-├── utils/                   # Shared utilities
-│   ├── logger.ts            # Logging utility
-│   └── sanitize.ts          # Input sanitization
-│
-├── __tests__/               # Test files
-│   ├── setup.ts             # Test setup
-│   └── *.test.ts            # Test files
-│
-└── index.ts                 # Application entry point
+```mermaid
+flowchart TD
+    A[User / LLM Application] -->|Sends Natural Language Query| B[MCP Server]
+    B -->|Parses Query| C[Intent Parser - NLP]
+    C -->|Determines Intent| D[Query Handler]
+    D -->|Fetches Data| E[LND Client]
+    E -->|Retrieves Node Data| F[LND Node]
+    F -->|Returns Data| E
+    E -->|Passes Data| D
+    D -->|Formats Response| G[Response Formatter]
+    G -->|Creates Human-Readable and JSON Output| H[JSON-RPC Response]
+    H --> A
 ```
 
-## Key Components
+---
 
-### 1. Configuration Management
+## 2. Technology Stack
 
-The `config` module is responsible for loading and validating environment variables. It ensures that all required configuration is present and valid before the application starts.
+The MCP-LND Server leverages a modern technology stack to ensure a clean and maintainable codebase while securely interfacing with LND nodes and processing natural language queries efficiently.
 
-### 2. LND Integration
+### Key Components
 
-The `lnd` module handles all interaction with the Lightning Network Daemon:
+- **Node.js & TypeScript:** The server is built with Node.js and TypeScript, ensuring type safety, maintainability, and modern JavaScript features.
+- **LND Integration (ln-service):** Uses the `ln-service` library to establish secure connections with LND nodes, utilizing TLS certificates and macaroons.
+- **Natural Language Processing:** A custom NLP module (located in `src/mcp/nlp/intentParser.ts`) parses user queries to identify intent types (e.g., channel list, channel health, channel liquidity).
+- **JSON-RPC Communication:** The server communicates using JSON-RPC over standard input/output, providing a flexible interface for LLM applications.
+- **Logging and Error Handling:** Utilizes structured logging (e.g., Pino) and robust error handling mechanisms to ensure reliability and security.
+- **Testing Frameworks:** Extensive unit and integration tests (using Jest) ensure that each module functions correctly in isolation and in the full data flow.
 
-- `client.ts`: Sets up the connection to the LND node using TLS certificates and macaroons
-- `queries.ts`: Implements functions to query the LND node for channel and other information
+---
 
-### 3. Natural Language Processing
+## 3. Design Decisions
 
-The `nlp` module is responsible for understanding natural language queries:
+### Scalability
 
-- `intentParser.ts`: Parses natural language to determine the user's intent and extract parameters
-- Supports multiple intent types, such as listing channels, checking channel health, and analyzing liquidity
+- **Modular Architecture:** The separation of concerns (LND integration, NLP, query handling, and response formatting) allows each component to scale independently. New features or query types can be added with minimal impact on existing code.
+- **Asynchronous Processing:** Leveraging async/await and Promise-based patterns ensures non-blocking I/O, which is critical for handling multiple concurrent queries from service providers.
 
-### 4. Domain Handlers and Formatters
+### Security
 
-- `handlers/channelQueryHandler.ts`: Processes requests based on the intent, fetches data from LND, and prepares responses
-- `formatters/channelFormatter.ts`: Formats raw LND data into human-readable text and structured JSON
+- **Secure LND Connections:** The use of TLS certificates and read-only macaroons ensures that communication with the LND node is secure and that only authorized queries are processed.
+- **Input Sanitization and Error Handling:** The server sanitizes incoming queries and logs errors without exposing sensitive information, thus maintaining security while troubleshooting.
 
-### 5. MCP Server and Tools
+### Maintainability
 
-- `server.ts`: Sets up the MCP server using the official SDK
-  - Uses `setRequestHandler` with schema objects from `@modelcontextprotocol/sdk/types.js`
-  - Handles `ListToolsRequestSchema` and `CallToolRequestSchema` requests
-  - Provides proper error handling and logging
-- `tools/channelQueryTool.ts`: Implements the natural language query tool
-  - Exposes metadata for tool discovery
-  - Processes natural language queries through the intent parser
-  - Returns both human-readable text and structured data
+- **Clean Code Practices:** The project adheres to Clean Code principles by using meaningful variable names, small focused functions, and extensive unit testing.
+- **TypeScript:** Type definitions across modules help maintain consistency and catch potential bugs at compile time.
 
-### 6. Utilities
+---
 
-The `utils` module provides shared utilities:
+## 4. Codebase Structure Mapping
 
-- `logger.ts`: Implements a logging utility using Pino
-- `sanitize.ts`: Sanitizes inputs and outputs
+The repository is organized to clearly separate each functional area:
 
-## Implementation Approach
+- **Configuration:**
+  - `src/config/` contains modules for loading and validating environment variables.
+- **LND Integration:**
 
-### 1. Transport Layer
+  - `src/lnd/client.ts` establishes and maintains the connection to the LND node.
+  - `src/lnd/queries.ts` implements functions to query the LND node for channel and node information.
 
-The server uses `StdioServerTransport` from the MCP SDK for compatibility with LLM interfaces. This allows the server to communicate with LLMs through standard input/output.
+- **Natural Language Processing:**
 
-### 2. Natural Language Query Flow
+  - `src/mcp/nlp/intentParser.ts` parses natural language queries and maps them to predefined intents.
 
-The natural language query flow follows these steps:
+- **Query Handling:**
 
-1. Client sends a natural language query to the MCP server
-2. Server parses the query to determine the intent (e.g., list channels, check health, analyze liquidity)
-3. Server fetches the relevant data from LND based on the intent
-4. Server formats the data into both human-readable text and structured JSON
-5. Server returns the formatted response to the client
+  - `src/mcp/handlers/channelQueryHandler.ts` processes queries related to channel data by interfacing with the LND client.
+  - `src/mcp/tools/channelQueryTool.ts` integrates NLP and query handling into an end-to-end tool.
 
-### 3. Intent Recognition
+- **Utilities:**
 
-The server uses pattern matching and keyword analysis to recognize different types of intents:
+  - `src/utils/` includes logging, sanitization, and other helper functions.
 
-- **List Intent**: Recognizes queries about listing or showing channels
-- **Health Intent**: Recognizes queries about channel health, status, or problems
-- **Liquidity Intent**: Recognizes queries about balance, liquidity, or distribution
+- **Type Definitions:**
 
-Each intent type has associated patterns and keywords for recognition, making it easy to extend with additional intent types in the future.
+  - `src/types/` defines interfaces and types that maintain consistency across modules.
 
-### 4. Response Formatting
+- **Testing:**
+  - `src/__tests__/` contains unit and integration tests ensuring each component functions as intended.
 
-Responses include both:
+---
 
-1. **Human-readable text**: Formatted for readability with summaries and highlights
-2. **Structured JSON data**: For programmatic use
+## 5. Translating Natural Language to LND Commands
 
-This dual-format approach allows both humans and machines to efficiently use the information.
+The system translates natural language queries into LND node commands through the following process:
 
-### 5. Testing Strategy
+1. **Query Reception:** A user query is received via JSON-RPC.
+2. **Intent Parsing:** The `IntentParser` module analyzes the text to determine whether the query is about listing channels, checking channel health, or analyzing liquidity.
+3. **Command Mapping:** Based on the identified intent, the appropriate query handler is invoked. For example, a channel list query triggers the channel query handler, which in turn calls functions in `ln-service` to fetch data.
+4. **Response Generation:** The results are processed and formatted into a dual response—human-readable text for easy consumption and structured JSON for programmatic use.
 
-The testing strategy includes:
+---
 
-- Unit tests for LND queries
-- Unit tests for intent parsing
-- Unit tests for response formatting
-- Integration tests for the full query flow
-- Tests for error handling and edge cases
-- Mock LND responses for deterministic testing
-- Mock server for testing without a real LND node
+## 6. Error Handling, Security, and Testing
 
-#### Mocking Approach
+### Error Handling
 
-External dependencies like ln-service are mocked at the appropriate level:
+- **Structured Logging:** All errors and warnings are logged with sufficient context for debugging.
+- **Graceful Degradation:** When errors occur (e.g., invalid queries or connection issues), the server sends standardized JSON-RPC error responses.
+- **Input Sanitization:** The system sanitizes input data to prevent injection attacks or unintended behavior.
 
-- For direct function tests, the ln-service functions are mocked
-- For tests of functions that call other internal functions, the underlying ln-service functions are mocked to test the full integration
-- For manual testing and demonstration, a mock server implementation is provided
+### Security Measures
 
-#### Mock Server Implementation
+- **Authentication:** Uses TLS certificates and macaroons to authenticate with the LND node.
+- **Environment Isolation:** Different environment configurations (development, test, production) allow for secure and isolated testing and deployment.
+- **Error Obfuscation:** Error messages are sanitized to avoid leaking sensitive details.
 
-The project includes a mock server implementation (`scripts/mock-server.js`) that allows running the MCP server with a mocked LND connection:
+### Testing Approaches
 
-1. **Mock LND Client**: A mock implementation of the LND client that returns predefined responses
-2. **Mock Files**: Creates mock TLS certificate and macaroon files in a `mock` directory
-3. **Environment Variables**: Sets up environment variables to point to the mock files
-4. **Server Integration**: Uses the real MCP server implementation with the mock LND client
+- **Unit Tests:** Focus on individual modules (e.g., intent parsing, LND queries) to ensure they perform as expected.
+- **Integration Tests:** Validate the complete query flow from natural language input to LND data retrieval and response formatting.
+- **Mock LND Mode:** The server can run in a mock mode to simulate LND responses, which is useful for development and automated testing.
 
-This allows:
+---
 
-- Testing the MCP server without a real LND node
-- Developing and testing LLM applications that use the MCP server
-- Demonstrating the MCP server functionality without requiring a real LND node
+## 7. Future Development Considerations
 
-#### Test Isolation
+### Enhancing Natural Language Capabilities
 
-Tests are carefully isolated to prevent one test from affecting others:
+- **Advanced NLP Models:** Incorporate more sophisticated NLP techniques or leverage pre-trained language models to handle a wider variety of queries.
+- **Intent Expansion:** Add support for additional query types, such as node statistics, payment history, and network graph analysis.
 
-- Mocks are reset between tests using jest.clearAllMocks()
-- Mock implementations are restored to their default values after tests that modify them
-- Each test focuses on testing a single responsibility
+### Expanding Lightning Network Integrations
 
-## Extensibility
+- **Multi-Aspect Data Queries:** Extend beyond channel data to include comprehensive node information, transaction histories, and real-time network analytics.
+- **Improved Error Diagnostics:** Develop more detailed diagnostic tools and dashboards for operational insights and troubleshooting.
 
-The architecture is designed for extensibility:
+---
 
-1. **New Intent Types**: Additional intents can be added by extending the intent parser
-2. **New Query Types**: New query handlers can be implemented for different types of LND data
-3. **Additional Formatters**: New formatters can be added for different types of data
-4. **Enhanced NLP**: The NLP module can be extended with more sophisticated parsing techniques
+## Conclusion
 
-## Dependencies
+The MCP-LND Server is built with scalability, security, and maintainability in mind. Its clean architecture—backed by robust LND integration and efficient natural language processing—ensures that it meets the current needs of lightning network service providers while also providing a strong foundation for future expansion. This architecture document serves as both a technical guide and an onboarding resource, ensuring that contributors can quickly understand and build upon the system.
 
-- `@modelcontextprotocol/sdk`: Official MCP SDK
-- `ln-service`: Library for interacting with LND
-- `dotenv`: Environment variable management
-- `pino`: Logging library
-
-## Configuration
-
-The server requires the following environment variables:
-
-- `LND_TLS_CERT_PATH`: Path to the LND TLS certificate
-- `LND_MACAROON_PATH`: Path to the LND macaroon file
-- `LND_HOST`: LND host (default: localhost)
-- `LND_PORT`: LND port (default: 10009)
-
-## Development Notes
-
-### MCP SDK Integration
-
-The server integrates with the MCP SDK using:
-
-- `Server` class from `@modelcontextprotocol/sdk/server/index.js`
-- `StdioServerTransport` for communication
-- Request schemas from `@modelcontextprotocol/sdk/types.js`
-
-When updating the MCP SDK, be aware that the API may change. Key integration points:
-
-- Request handler registration using `setRequestHandler`
-- Request schema validation
-- Response formatting
-
-### Type Definitions
-
-The project uses several key type definitions:
-
-- `Intent`: Represents the parsed user intent with type, query, and optional error
-- `QueryResult`: Represents the result of a query with response text and structured data
-- `Channel`: Represents LND channel data
-- `ChannelSummary`: Represents aggregated channel statistics
-
-Ensure consistency between these types across different modules to prevent TypeScript errors.
+Happy hacking!
