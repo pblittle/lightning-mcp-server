@@ -138,6 +138,33 @@ class SimpleMcpServer {
       }
 
       switch (request.method) {
+        case 'initialize':
+          logger.info(`[${requestId}] Handling initialize request`);
+          const response = {
+            jsonrpc: '2.0',
+            id: request.id,
+            result: {
+              protocolVersion: request.params.protocolVersion || '2024-11-05',
+              serverInfo: {
+                name: 'mcp-server-lnd-mock',
+                version: '1.0.0',
+              },
+              capabilities: {
+                sampling: {},
+                roots: {
+                  listChanged: true,
+                },
+                tools: {}, // This is the key line you need to add
+              },
+            },
+          };
+          this.sendResponse(response, requestId);
+          break;
+        case 'notifications/initialized':
+          logger.info(`[${requestId}] Handling notifications/initialized`);
+          // No response needed for notifications
+          break;
+        case 'tools/list': // Add this case to handle the newer method name
         case 'listTools':
           logger.info(`[${requestId}] Handling listTools request`);
           this.handleListTools(request, requestId);
@@ -179,6 +206,14 @@ class SimpleMcpServer {
                 },
               },
               required: ['query'],
+            },
+            usage: {
+              guidance: 'Ask questions about your Lightning Network channels in natural language',
+              examples: [
+                'Show me all my channels',
+                'What is the health of my channels?',
+                'How is my channel liquidity distributed?',
+              ],
             },
           },
         ],
