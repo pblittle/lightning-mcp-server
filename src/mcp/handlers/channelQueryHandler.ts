@@ -1,7 +1,7 @@
 import * as lnService from 'ln-service';
 import { LndClient } from '../../lnd/client';
 import { Intent } from '../../types/intent';
-import { Channel, ChannelQueryResult, ChannelSummary } from '../../types/channel';
+import { Channel, ChannelQueryResult, ChannelSummary, HealthCriteria } from '../../types/channel';
 import { ChannelFormatter } from '../formatters/channelFormatter';
 import logger from '../../utils/logger';
 import { sanitizeError } from '../../utils/sanitize';
@@ -16,9 +16,20 @@ export interface QueryResult {
 
 export class ChannelQueryHandler {
   private formatter: ChannelFormatter;
+  private readonly healthCriteria: HealthCriteria;
 
-  constructor(private readonly lndClient: LndClient) {
+  /**
+   * Creates a new ChannelQueryHandler
+   *
+   * @param lndClient - LND client for interacting with the Lightning Network
+   * @param healthCriteria - Optional criteria for determining channel health
+   */
+  constructor(private readonly lndClient: LndClient, healthCriteria?: HealthCriteria) {
     this.formatter = new ChannelFormatter();
+    this.healthCriteria = healthCriteria || {
+      minLocalRatio: 0.1, // Default: 10% minimum local balance
+      maxLocalRatio: 0.9, // Default: 90% maximum local balance
+    };
   }
 
   async handleQuery(intent: Intent): Promise<QueryResult> {
@@ -51,6 +62,24 @@ export class ChannelQueryHandler {
             type: 'channel_list',
             text: this.formatter.formatChannelList(channelData),
             response: this.formatter.formatChannelList(channelData),
+            data: channelData,
+          };
+          break;
+
+        case 'channel_health':
+          result = {
+            type: 'channel_health',
+            text: this.formatter.formatChannelHealth(channelData),
+            response: this.formatter.formatChannelHealth(channelData),
+            data: channelData,
+          };
+          break;
+
+        case 'channel_liquidity':
+          result = {
+            type: 'channel_liquidity',
+            text: this.formatter.formatChannelLiquidity(channelData),
+            response: this.formatter.formatChannelLiquidity(channelData),
             data: channelData,
           };
           break;
@@ -127,33 +156,95 @@ export class ChannelQueryHandler {
     }
   }
 
+  /**
+   * Adds node aliases to channels by fetching node information
+   *
+   * This method optimizes API calls by:
+   * 1. Identifying unique node public keys across all channels
+   * 2. Making a single API call per unique public key
+   * 3. Mapping the results back to all channels
+   *
+   * @param channels - The channels to add aliases to
+   * @returns Channels with remote_alias property added
+   */
   private async addNodeAliases(channels: Channel[]): Promise<Channel[]> {
+    const startTime = Date.now();
+    const requestId = `alias-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
     try {
       const lnd = this.lndClient.getLnd();
-      const channelsWithAliases = await Promise.all(
-        channels.map(async (channel) => {
-          try {
-            // Get node info to get alias
-            const nodeInfo = await lnService.getNodeInfo({
-              lnd,
-              public_key: channel.remote_pubkey,
-            });
 
-            return {
-              ...channel,
-              remote_alias: nodeInfo?.alias || 'Unknown',
-            };
-          } catch (error) {
-            // If we can't get the alias, just return the channel without it
-            return channel;
-          }
-        })
-      );
+      logger.debug('Starting node alias retrieval', {
+        component: 'channel-handler',
+        requestId,
+        channelCount: channels.length,
+      });
 
-      return channelsWithAliases;
+      // Create a map of pubkeys to avoid duplicate lookups
+      const pubkeyMap = new Map<string, string>();
+      channels.forEach((channel) => {
+        if (!pubkeyMap.has(channel.remote_pubkey)) {
+          pubkeyMap.set(channel.remote_pubkey, '');
+        }
+      });
+
+      logger.debug('Fetching node aliases', {
+        component: 'channel-handler',
+        requestId,
+        uniqueNodeCount: pubkeyMap.size,
+        totalChannels: channels.length,
+      });
+
+      // Fetch all unique node infos in parallel
+      const pubkeys = Array.from(pubkeyMap.keys());
+      const nodeInfoPromises = pubkeys.map(async (pubkey) => {
+        try {
+          const nodeInfo = await lnService.getNodeInfo({ lnd, public_key: pubkey });
+          return { pubkey, alias: nodeInfo?.alias || 'Unknown' };
+        } catch (error) {
+          logger.debug(`Could not fetch alias for node ${pubkey.substring(0, 8)}...`, {
+            component: 'channel-handler',
+            requestId,
+            error: sanitizeError(error).message,
+          });
+          return { pubkey, alias: 'Unknown' };
+        }
+      });
+
+      const nodeInfos = await Promise.all(nodeInfoPromises);
+
+      // Update the map with aliases
+      nodeInfos.forEach((info) => {
+        pubkeyMap.set(info.pubkey, info.alias);
+      });
+
+      // Add aliases to channels
+      const result = channels.map((channel) => ({
+        ...channel,
+        remote_alias: pubkeyMap.get(channel.remote_pubkey) || 'Unknown',
+      }));
+
+      const duration = Date.now() - startTime;
+      logger.info('Node alias retrieval completed', {
+        component: 'channel-handler',
+        requestId,
+        durationMs: duration,
+        uniqueNodeCount: pubkeyMap.size,
+        totalChannels: channels.length,
+      });
+
+      return result;
     } catch (error) {
       const sanitizedError = sanitizeError(error);
-      logger.error(`Error adding node aliases: ${sanitizedError.message}`);
+      const duration = Date.now() - startTime;
+
+      logger.error(`Error adding node aliases: ${sanitizedError.message}`, {
+        component: 'channel-handler',
+        requestId,
+        durationMs: duration,
+        error: sanitizedError.message,
+      });
+
       // Return original channels if we can't add aliases
       return channels;
     }
@@ -202,8 +293,19 @@ export class ChannelQueryHandler {
       if (!channel.active) return true;
 
       const localRatio = channel.local_balance / channel.capacity;
-      return localRatio < 0.1 || localRatio > 0.9; // Extreme imbalance
+      return (
+        localRatio < this.healthCriteria.minLocalRatio ||
+        localRatio > this.healthCriteria.maxLocalRatio
+      );
     }).length;
+
+    // Log health criteria used for this calculation
+    logger.debug('Channel health calculation', {
+      component: 'channel-handler',
+      healthCriteria: this.healthCriteria,
+      totalChannels: channels.length,
+      unhealthyChannels,
+    });
 
     return {
       totalCapacity,
