@@ -1,6 +1,24 @@
 import { Channel as LnServiceChannel } from 'ln-service';
 
 /**
+ * Health criteria for channels
+ * Defines thresholds for determining channel health
+ */
+export interface HealthCriteria {
+  /**
+   * Minimum acceptable local balance ratio (0.0 to 1.0)
+   * Channels with local balance ratio below this are considered unhealthy
+   */
+  minLocalRatio: number;
+
+  /**
+   * Maximum acceptable local balance ratio (0.0 to 1.0)
+   * Channels with local balance ratio above this are considered unhealthy
+   */
+  maxLocalRatio: number;
+}
+
+/**
  * Lightning Network Channel
  * Extends ln-service Channel type with additional fields
  */
