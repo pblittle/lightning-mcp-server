@@ -12,7 +12,7 @@ This directory contains scripts for testing the LND MCP server with a real Light
 
 1. Create a `.env.test` file in the project root based on `.env.test.template`:
 
-```
+```bash
 # Test Environment Configuration
 
 # LND Configuration
@@ -31,7 +31,7 @@ Replace the paths with the actual paths to your TLS certificate and macaroon fil
 
 ### 1. Start the Server
 
-First, start the MCP-LND server:
+First, start the LND MCP server:
 
 ```bash
 node scripts/run-server.js
