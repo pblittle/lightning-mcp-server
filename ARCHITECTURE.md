@@ -6,7 +6,7 @@ This document provides a comprehensive architectural overview of the LND MCP Ser
 
 ## 1. High-Level Architectural Overview
 
-The MCP-LND Server is designed to bridge the gap between complex LND node data and user-friendly, natural language queries. The core workflow can be summarized as follows:
+The LND MCP Server is designed to bridge the gap between complex LND node data and user-friendly, natural language queries. The core workflow can be summarized as follows:
 
 1. **Input:** A user (or LLM application) sends a natural language query.
 2. **NLP Processing:** The server parses the query to determine user intent.
@@ -34,7 +34,7 @@ flowchart TD
 
 ## 2. Technology Stack
 
-The MCP-LND Server leverages a modern technology stack to ensure a clean and maintainable codebase while securely interfacing with LND nodes and processing natural language queries efficiently.
+The LND MCP Server leverages a modern technology stack to ensure a clean and maintainable codebase while securely interfacing with LND nodes and processing natural language queries efficiently.
 
 ### Key Components
 
@@ -148,6 +148,6 @@ The system translates natural language queries into LND node commands through th
 
 ## Conclusion
 
-The MCP-LND Server is built with scalability, security, and maintainability in mind. Its clean architecture—backed by robust LND integration and efficient natural language processing—ensures that it meets the current needs of lightning network service providers while also providing a strong foundation for future expansion. This architecture document serves as both a technical guide and an onboarding resource, ensuring that contributors can quickly understand and build upon the system.
+The LND MCP Server is built with scalability, security, and maintainability in mind. Its clean architecture—backed by robust LND integration and efficient natural language processing—ensures that it meets the current needs of lightning network service providers while also providing a strong foundation for future expansion. This architecture document serves as both a technical guide and an onboarding resource, ensuring that contributors can quickly understand and build upon the system.
 
 Happy hacking!

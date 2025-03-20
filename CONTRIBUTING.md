@@ -29,7 +29,7 @@ Thanks for your interest in improving the LND MCP Server! This guide will help y
    ```bash
    # Run with auto-reload during development
    npm run dev
-   
+
    # Or use mock LND mode (recommended for most development)
    npm run mcp:mock
    ```

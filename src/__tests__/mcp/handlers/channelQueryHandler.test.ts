@@ -24,7 +24,7 @@ describe('ChannelQueryHandler', () => {
   let handler: ChannelQueryHandler;
   let mockLndClient: MockLndClient;
   let mockChannelFormatter: jest.Mocked<ChannelFormatter>;
-  
+
   // Import ln-service after mocking
   const lnService = require('ln-service');
 
@@ -38,7 +38,7 @@ describe('ChannelQueryHandler', () => {
       checkConnection: jest.fn(),
       close: jest.fn(),
     };
-    
+
     // Set up mock formatter
     mockChannelFormatter = {
       formatChannelList: jest.fn().mockReturnValue('Formatted channel list'),
@@ -83,9 +83,9 @@ describe('ChannelQueryHandler', () => {
 
     test('should handle channel_list intent', async () => {
       const intent: Intent = { type: 'channel_list', query: 'list my channels' };
-      
+
       const result = await handler.handleQuery(intent);
-      
+
       expect(result.type).toBe('channel_list');
       expect(result.response).toContain('Formatted channel list');
       expect(mockChannelFormatter.formatChannelList).toHaveBeenCalled();
@@ -93,9 +93,9 @@ describe('ChannelQueryHandler', () => {
 
     test('should handle channel_health intent', async () => {
       const intent: Intent = { type: 'channel_health', query: 'how healthy are my channels' };
-      
+
       const result = await handler.handleQuery(intent);
-      
+
       expect(result.type).toBe('channel_health');
       expect(result.response).toContain('Formatted channel health');
       expect(mockChannelFormatter.formatChannelHealth).toHaveBeenCalled();
@@ -103,9 +103,9 @@ describe('ChannelQueryHandler', () => {
 
     test('should handle channel_liquidity intent', async () => {
       const intent: Intent = { type: 'channel_liquidity', query: 'how is my channel liquidity' };
-      
+
       const result = await handler.handleQuery(intent);
-      
+
       expect(result.type).toBe('channel_liquidity');
       expect(result.response).toContain('Formatted channel liquidity');
       expect(mockChannelFormatter.formatChannelLiquidity).toHaveBeenCalled();
@@ -113,9 +113,9 @@ describe('ChannelQueryHandler', () => {
 
     test('should handle unknown intent', async () => {
       const intent: Intent = { type: 'unknown', query: 'what is the meaning of life' };
-      
+
       const result = await handler.handleQuery(intent);
-      
+
       expect(result.type).toBe('unknown');
       expect(result.response).toContain("didn't understand");
     });
@@ -127,10 +127,10 @@ describe('ChannelQueryHandler', () => {
       jest.spyOn(handler as any, 'getChannelData').mockImplementation(() => {
         return Promise.reject(new Error('Test error'));
       });
-      
+
       const intent: Intent = { type: 'channel_list', query: 'list my channels' };
       const result = await handler.handleQuery(intent);
-      
+
       expect(result.type).toBe('error');
       expect(result.error).toBeDefined();
       expect(result.error?.message).toBe('Test error');
@@ -153,14 +153,14 @@ describe('ChannelQueryHandler', () => {
       const mockGetChannelsFn = jest.fn(() => {
         return Promise.resolve({ channels: mockChannels });
       });
-      
+
       // Use the mock function for getChannels
       lnService.getChannels = mockGetChannelsFn;
-      
+
       // Call the private method directly
       const getChannelData = (handler as any).getChannelData;
       const result = await getChannelData.call(handler);
-      
+
       expect(mockGetChannelsFn).toHaveBeenCalled();
       expect(result.channels).toEqual(mockChannels);
       expect(result.summary).toBeDefined();
@@ -196,14 +196,14 @@ describe('ChannelQueryHandler', () => {
         }
         return Promise.reject(new Error('Unknown public key'));
       });
-      
+
       // Use the mock function for getNodeInfo
       lnService.getNodeInfo = mockGetNodeInfoFn;
-      
+
       // Call the private method directly
       const addNodeAliases = (handler as any).addNodeAliases;
       const result = await addNodeAliases.call(handler, testChannels);
-      
+
       expect(result.length).toBe(2);
       expect(result[0].remote_alias).toBe('Node 1');
       expect(result[1].remote_alias).toBe('Node 2');
@@ -235,14 +235,14 @@ describe('ChannelQueryHandler', () => {
         }
         return Promise.reject(new Error('Node not found'));
       });
-      
+
       // Use the mock function for getNodeInfo
       lnService.getNodeInfo = mockGetNodeInfoFn;
-      
+
       // Call the private method directly
       const addNodeAliases = (handler as any).addNodeAliases;
       const result = await addNodeAliases.call(handler, testChannels);
-      
+
       expect(result.length).toBe(2);
       expect(result[0].remote_alias).toBe('Node 1');
       expect(result[1].remote_alias).toBe('Unknown');
@@ -257,11 +257,11 @@ describe('ChannelQueryHandler', () => {
         { capacity: 1000000, local_balance: 50000, remote_balance: 950000, active: true },
         { capacity: 1000000, local_balance: 500000, remote_balance: 500000, active: false },
       ] as unknown as Channel[];
-      
+
       // Call the private method directly
       const calculateChannelSummary = (handler as any).calculateChannelSummary;
       const summary = calculateChannelSummary.call(handler, testChannels);
-      
+
       expect(summary.healthyChannels).toBe(1);
       expect(summary.unhealthyChannels).toBe(2);
     });
@@ -272,22 +272,22 @@ describe('ChannelQueryHandler', () => {
         minLocalRatio: 0.3,
         maxLocalRatio: 0.7,
       };
-      
+
       const handlerWithCriteria = new ChannelQueryHandler(
         mockLndClient as unknown as LndClient,
         customCriteria
       );
-      
+
       // Create test channels - using unknown conversion to avoid type mismatches
       const testChannels = [
         { capacity: 1000000, local_balance: 500000, remote_balance: 500000, active: true },
         { capacity: 1000000, local_balance: 200000, remote_balance: 800000, active: true },
       ] as unknown as Channel[];
-      
+
       // Call the private method directly
       const calculateChannelSummary = (handlerWithCriteria as any).calculateChannelSummary;
       const summary = calculateChannelSummary.call(handlerWithCriteria, testChannels);
-      
+
       expect(summary.healthyChannels).toBe(1);
       expect(summary.unhealthyChannels).toBe(1);
     });

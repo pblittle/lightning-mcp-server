@@ -1,6 +1,6 @@
 # Testing with a Real LND Node
 
-This directory contains scripts for testing the MCP-LND server with a real Lightning Network node.
+This directory contains scripts for testing the LND MCP server with a real Lightning Network node.
 
 ## Prerequisites
 
