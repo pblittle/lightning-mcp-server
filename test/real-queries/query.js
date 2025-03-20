@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Test script for querying the real MCP-LND server
+ * Test script for querying the real LND MCP server
  *
  * Usage: node test/real-queries/query.js "Your natural language query here"
  *

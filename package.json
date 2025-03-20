@@ -1,5 +1,5 @@
 {
-  "name": "mcp-server-lnd",
+  "name": "lnd-mcp-server",
   "version": "1.0.0",
   "description": "MCP Server for LND",
   "main": "dist/index.js",
@@ -29,7 +29,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pblittle/mcp-server-lnd.git"
+    "url": "git+https://github.com/pblittle/lnd-mcp-server.git"
   },
   "author": "P. Barrett Little",
   "license": "Apache-2.0",
@@ -42,8 +42,8 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.3",
-    "@types/node": "^20.4.9",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.17.24",
     "@types/winston": "^2.4.4",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Run the MCP-LND Server
+ * Run the LND MCP Server
  *
  * This script runs the actual MCP server that connects to a real LND node.
  */
@@ -74,7 +74,7 @@ function sanitizeErrorMessage(message) {
 }
 
 // Run the server
-console.log('Starting MCP-LND server...');
+console.log('Starting LND MCP server...');
 
 // Use ts-node to run the TypeScript file directly
 const serverProcess = spawn('npx', ['ts-node', path.resolve(__dirname, '../src/index.ts')], {

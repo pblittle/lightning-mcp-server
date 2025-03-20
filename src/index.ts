@@ -22,7 +22,7 @@ let mcpServer: Awaited<ReturnType<typeof createMcpServer>> | null = null;
  */
 export async function bootstrap() {
   try {
-    logger.info('Starting MCP-LND server');
+    logger.info('Starting LND MCP server');
 
     // Load configuration
     const config = getConfig();
@@ -36,7 +36,7 @@ export async function bootstrap() {
     // Create and start MCP server
     mcpServer = await createMcpServer(lndClient, config);
 
-    logger.info('MCP-LND server started');
+    logger.info('LND MCP server started');
   } catch (error) {
     const sanitizedError = sanitizeError(error);
     logger.error(`Failed to start application: ${sanitizedError.message}`, {

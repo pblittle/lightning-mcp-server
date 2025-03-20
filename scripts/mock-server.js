@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Fixed MCP-LND Mock Server
+ * Fixed LND MCP Mock Server
  *
  * This server implements a simplified MCP server with mocked LND connection
  * for testing natural language channel queries.
@@ -146,7 +146,7 @@ class SimpleMcpServer {
             result: {
               protocolVersion: request.params.protocolVersion || '2024-11-05',
               serverInfo: {
-                name: 'mcp-server-lnd-mock',
+                name: 'lnd-mcp-server-mock',
                 version: '1.0.0',
               },
               capabilities: {

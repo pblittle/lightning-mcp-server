@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Test script for listing channels from the real MCP-LND server
+ * Test script for listing channels from the real LND MCP server
  */
 
 const { spawn } = require('child_process');

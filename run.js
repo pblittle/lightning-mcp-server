@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * MCP-LND Server Runner
+ * LND MCP Server Runner
  *
- * This script builds and runs the MCP-LND server.
+ * This script builds and runs the LND MCP server.
  */
 
 const path = require('path');
@@ -25,7 +25,7 @@ if (!fs.existsSync(BUILD_DIR)) {
 }
 
 // Build the TypeScript code
-console.log('Building MCP-LND server...');
+console.log('Building LND MCP server...');
 try {
   execSync('npm run build', { stdio: 'inherit' });
   console.log('Build completed successfully.');
@@ -43,7 +43,7 @@ try {
 }
 
 // Run the server with NODE_ENV set
-console.log(`Starting MCP-LND server in ${nodeEnv} mode...`);
+console.log(`Starting LND MCP server in ${nodeEnv} mode...`);
 try {
   const serverProcess = spawn('node', [MAIN_FILE], {
     stdio: 'inherit',
