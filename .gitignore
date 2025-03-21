@@ -12,7 +12,6 @@ build/
 
 # Logs
 *.log
-npm-debug.log*
 
 # TypeScript cache
 *.tsbuildinfo
@@ -25,3 +24,16 @@ coverage/
 
 # DCCache
 .dccache
+
+# Repomix output
+repomix-output.*
+
+# ESLint cache
+.eslintcache
+
+# Temporary files
+*.tmp
+*.temp
+
+# Aider
+.aider*
