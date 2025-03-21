@@ -250,7 +250,11 @@ class SimpleMcpServer {
     let query = '';
 
     if (!args) {
-      logger.error(`[${requestId}] Missing arguments`);
+      logger.error(`[${requestId}] Missing arguments in callTool request`, {
+        component: 'mock-server',
+        operation: 'handleCallTool',
+        toolName: name,
+      });
       this.sendError(request.id, -32602, 'Missing arguments', requestId);
       return;
     }
@@ -263,6 +267,7 @@ class SimpleMcpServer {
           query = parsedArgs.query;
         }
       } catch (e) {
+        logger.warn(`[${requestId}] Error parsing JSON args: ${e.message}`);
         // If parsing fails, use the string as is
         query = args;
       }
