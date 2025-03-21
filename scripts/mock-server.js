@@ -140,25 +140,27 @@ class SimpleMcpServer {
       switch (request.method) {
         case 'initialize':
           logger.info(`[${requestId}] Handling initialize request`);
-          const response = {
-            jsonrpc: '2.0',
-            id: request.id,
-            result: {
-              protocolVersion: request.params.protocolVersion || '2024-11-05',
-              serverInfo: {
-                name: 'lnd-mcp-server-mock',
-                version: '1.0.0',
-              },
-              capabilities: {
-                sampling: {},
-                roots: {
-                  listChanged: true,
+          {
+            const response = {
+              jsonrpc: '2.0',
+              id: request.id,
+              result: {
+                protocolVersion: request.params.protocolVersion || '2024-11-05',
+                serverInfo: {
+                  name: 'lnd-mcp-server-mock',
+                  version: '1.0.0',
                 },
-                tools: {}, // This is the key line you need to add
+                capabilities: {
+                  sampling: {},
+                  roots: {
+                    listChanged: true,
+                  },
+                  tools: {},
+                },
               },
-            },
-          };
-          this.sendResponse(response, requestId);
+            };
+            this.sendResponse(response, requestId);
+          }
           break;
         case 'notifications/initialized':
           logger.info(`[${requestId}] Handling notifications/initialized`);
