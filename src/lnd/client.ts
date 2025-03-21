@@ -17,7 +17,7 @@ export interface LndAuthentication {
  */
 export class LndClient {
   private config: Config;
-  private lnd: lnService.AuthenticatedLnd | null = null;
+  private lndConnection: lnService.AuthenticatedLnd | null = null;
 
   /**
    * Creates a new LND client with the given configuration
@@ -43,13 +43,13 @@ export class LndClient {
         port: this.config.lnd.port,
       });
 
-      const auth: LndAuthentication = {
+      const authParams: LndAuthentication = {
         cert: this.config.lnd.tlsCertPath,
         macaroon: this.config.lnd.macaroonPath,
         socket: `${this.config.lnd.host}:${this.config.lnd.port}`,
       };
 
-      return lnService.authenticatedLndGrpc(auth);
+      return lnService.authenticatedLndGrpc(authParams);
     } catch (error) {
       const sanitizedError = sanitizeError(error);
 
@@ -72,16 +72,16 @@ export class LndClient {
    * Gets the LND connection, creating one if it doesn't exist
    */
   getLnd(): lnService.AuthenticatedLnd {
-    if (!this.lnd) {
+    if (!this.lndConnection) {
       logger.debug('Initializing LND connection', {
         component: 'lnd-client',
         operation: 'getLnd',
       });
 
-      this.lnd = this.createLndConnection();
+      this.lndConnection = this.createLndConnection();
     }
 
-    return this.lnd;
+    return this.lndConnection;
   }
 
   /**
@@ -125,7 +125,7 @@ export class LndClient {
   close(): void {
     try {
       // Clear the LND connection
-      this.lnd = null;
+      this.lndConnection = null;
 
       // Log with the exact message the test expects
       logger.info('LND connection closed');
