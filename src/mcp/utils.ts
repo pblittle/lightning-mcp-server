@@ -21,34 +21,57 @@ export function determineErrorCode(error: unknown): ErrorCode {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const lowerMessage = errorMessage.toLowerCase();
 
-  // Check for invalid parameter errors
+  // Prioritize more specific error conditions first
+
+  // Authentication and authorization errors
   if (
-    lowerMessage.includes('parameter') ||
-    lowerMessage.includes('param') ||
-    lowerMessage.includes('not allowed') ||
-    lowerMessage.includes('invalid') ||
-    lowerMessage.includes('missing')
+    lowerMessage.includes('unauthorized') ||
+    lowerMessage.includes('permission denied') ||
+    lowerMessage.includes('auth') ||
+    lowerMessage.includes('not allowed to')
   ) {
-    return ErrorCode.InvalidParams;
+    return ErrorCode.InvalidRequest;
   }
 
-  // Check for method/resource not found errors
+  // Method/resource not found errors
   if (
     lowerMessage.includes('not found') ||
-    lowerMessage.includes('unknown') ||
-    lowerMessage.includes('command')
+    lowerMessage.includes('unknown method') ||
+    lowerMessage.includes('unknown command') ||
+    lowerMessage.includes('undefined method')
   ) {
     return ErrorCode.MethodNotFound;
   }
 
-  // Check for authorization/permission errors
+  // Parse errors
   if (
-    lowerMessage.includes('unauthorized') ||
-    lowerMessage.includes('permission') ||
-    lowerMessage.includes('denied') ||
-    lowerMessage.includes('auth')
+    lowerMessage.includes('parse error') ||
+    lowerMessage.includes('parsing failed') ||
+    lowerMessage.includes('invalid json') ||
+    lowerMessage.includes('syntax error')
   ) {
-    return ErrorCode.InvalidRequest;
+    return ErrorCode.ParseError;
+  }
+
+  // Invalid parameter errors - check this after more specific conditions
+  if (
+    lowerMessage.includes('parameter') ||
+    lowerMessage.includes('param') ||
+    lowerMessage.includes('invalid') ||
+    lowerMessage.includes('missing') ||
+    lowerMessage.includes('not allowed')
+  ) {
+    return ErrorCode.InvalidParams;
+  }
+
+  // Server errors
+  if (
+    lowerMessage.includes('timeout') ||
+    lowerMessage.includes('overloaded') ||
+    lowerMessage.includes('unavailable') ||
+    lowerMessage.includes('internal server error')
+  ) {
+    return ErrorCode.InternalError;
   }
 
   // Default to internal error
