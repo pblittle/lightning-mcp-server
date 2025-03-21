@@ -164,11 +164,12 @@ class SimpleMcpServer {
           logger.info(`[${requestId}] Handling notifications/initialized`);
           // No response needed for notifications
           break;
-        case 'tools/list': // Add this case to handle the newer method name
+        case 'tools/list': // Support newer MCP protocol version naming scheme
         case 'listTools':
           logger.info(`[${requestId}] Handling listTools request`);
           this.handleListTools(request, requestId);
           break;
+        case 'tools/call': // Support newer MCP protocol version naming scheme
         case 'callTool':
           logger.info(`[${requestId}] Handling callTool request for tool: ${request.params?.name}`);
           this.handleCallTool(request, requestId);
