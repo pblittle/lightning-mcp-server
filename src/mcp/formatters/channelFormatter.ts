@@ -1,4 +1,6 @@
+// src/mcp/formatters/channelFormatter.ts
 import { ChannelQueryResult } from '../../types/channel';
+import { formatSatoshis } from '../../utils/format_bitcoin';
 
 export class ChannelFormatter {
   formatChannelList(data: ChannelQueryResult): string {
@@ -8,7 +10,7 @@ export class ChannelFormatter {
       return "Your node doesn't have any channels at the moment.";
     }
 
-    const formattedCapacity = this.formatSatoshis(summary.totalCapacity);
+    const formattedCapacity = formatSatoshis(summary.totalCapacity);
 
     let response = `Your node has ${channels.length} channels with a total capacity of ${formattedCapacity}. `;
     response += `${summary.activeChannels} channels are active and ${summary.inactiveChannels} are inactive.\n\n`;
@@ -22,7 +24,7 @@ export class ChannelFormatter {
       topChannels.forEach((channel, index) => {
         const alias = channel.remote_alias || channel.remote_pubkey.substring(0, 10) + '...';
         response +=
-          `${index + 1}. ${alias}: ${this.formatSatoshis(channel.capacity)} ` +
+          `${index + 1}. ${alias}: ${formatSatoshis(channel.capacity)} ` +
           `(${channel.active ? 'active' : 'inactive'})\n`;
       });
     }
@@ -46,7 +48,7 @@ export class ChannelFormatter {
 
       inactiveChannels.forEach((channel, index) => {
         const alias = channel.remote_alias || channel.remote_pubkey.substring(0, 10) + '...';
-        response += `${index + 1}. ${alias}: ${this.formatSatoshis(channel.capacity)}\n`;
+        response += `${index + 1}. ${alias}: ${formatSatoshis(channel.capacity)}\n`;
       });
 
       response += '\n';
@@ -84,10 +86,10 @@ export class ChannelFormatter {
     const remotePercent = Math.round((summary.totalRemoteBalance / summary.totalCapacity) * 100);
 
     let response =
-      `Liquidity Distribution: ${this.formatSatoshis(
+      `Liquidity Distribution: ${formatSatoshis(
         summary.totalLocalBalance
       )} local (${localPercent}%), ` +
-      `${this.formatSatoshis(summary.totalRemoteBalance)} remote (${remotePercent}%).\n\n`;
+      `${formatSatoshis(summary.totalRemoteBalance)} remote (${remotePercent}%).\n\n`;
 
     // Most balanced channels
     const balancedChannels = [...channels]
@@ -136,10 +138,5 @@ export class ChannelFormatter {
     }
 
     return response;
-  }
-
-  private formatSatoshis(sats: number): string {
-    const btc = sats / 100000000;
-    return `${btc.toFixed(8)} BTC (${sats.toLocaleString()} sats)`;
   }
 }

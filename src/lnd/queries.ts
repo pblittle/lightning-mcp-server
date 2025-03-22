@@ -8,15 +8,7 @@ import {
 } from '../types';
 import { sanitizeError } from '../utils/sanitize';
 import { logger } from '../utils/logger';
-
-/**
- * Formats satoshis to BTC string representation
- * @param sats Amount in satoshis
- * @returns Formatted string with BTC denomination
- */
-export function formatSatsToBtc(sats: number): string {
-  return `${(sats / 100000000).toFixed(8)} BTC`;
-}
+import { formatSatsToBtc } from '../utils/format_bitcoin';
 
 /**
  * Gets wallet balance from LND
