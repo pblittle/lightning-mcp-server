@@ -1,3 +1,10 @@
+/**
+ * Handler for processing channel-related queries (list, health, liquidity)
+ * using data from the connected LND node.
+ *
+ * Part of the MCP server's natural language interface.
+ */
+
 import * as lnService from 'ln-service';
 import { LndClient } from '../../lnd/client';
 import { Intent } from '../../types/intent';
@@ -6,9 +13,9 @@ import { ChannelFormatter } from '../formatters/channelFormatter';
 import logger from '../../utils/logger';
 import { sanitizeError } from '../../utils/sanitize';
 
-export interface QueryResult {
+export interface QueryResult<TData = Record<string, unknown>> {
   response: string;
-  data: Record<string, any>;
+  data: TData;
   type?: string;
   text?: string;
   error?: Error;
@@ -32,7 +39,9 @@ export class ChannelQueryHandler {
     };
   }
 
-  async handleQuery(intent: Intent): Promise<QueryResult> {
+  async handleQuery(
+    intent: Intent
+  ): Promise<QueryResult<ChannelQueryResult | Record<string, never>>> {
     const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
     try {
@@ -53,7 +62,7 @@ export class ChannelQueryHandler {
 
       const channelData = await this.getChannelData();
 
-      let result: QueryResult;
+      let result: QueryResult<ChannelQueryResult>;
 
       // Format response based on intent type
       switch (intent.type) {
@@ -90,7 +99,7 @@ export class ChannelQueryHandler {
             text: "I didn't understand that query. Try asking about your channel list, health, or liquidity.",
             response:
               "I didn't understand that query. Try asking about your channel list, health, or liquidity.",
-            data: {},
+            data: {} as ChannelQueryResult,
           };
       }
 
@@ -126,27 +135,25 @@ export class ChannelQueryHandler {
     }
   }
 
+  /**
+   * Retrieves and processes channel data from the LND node
+   *
+   * This method orchestrates the data collection and enrichment process by:
+   * 1. Fetching raw channel data from LND
+   * 2. Enriching the data with additional metadata (like node aliases)
+   * 3. Calculating summary statistics
+   *
+   * @returns Complete channel data with summary statistics
+   * @throws Sanitized error if data retrieval fails
+   */
   private async getChannelData(): Promise<ChannelQueryResult> {
     try {
-      // Get channels from LND
-      const lnd = this.lndClient.getLnd();
-      const { channels } = await lnService.getChannels({ lnd });
-
-      if (!channels || !Array.isArray(channels)) {
-        return {
-          channels: [],
-          summary: this.calculateChannelSummary([]),
-        };
-      }
-
-      // Get node aliases for each channel
-      const channelsWithAliases = await this.addNodeAliases(channels);
-
-      // Calculate summary statistics
-      const summary = this.calculateChannelSummary(channelsWithAliases);
+      const channels = await this.fetchRawChannelData();
+      const enrichedChannels = await this.enrichChannelsWithMetadata(channels);
+      const summary = this.calculateChannelSummary(enrichedChannels);
 
       return {
-        channels: channelsWithAliases,
+        channels: enrichedChannels,
         summary,
       };
     } catch (error) {
@@ -154,6 +161,44 @@ export class ChannelQueryHandler {
       logger.error(`Error fetching channel data: ${sanitizedError.message}`);
       throw sanitizedError;
     }
+  }
+
+  /**
+   * Fetches raw channel data from the LND node
+   *
+   * Retrieves the basic channel information without any additional
+   * processing or enrichment.
+   *
+   * @returns Array of channel objects from LND
+   * @throws Error if LND channel retrieval fails
+   */
+  private async fetchRawChannelData(): Promise<Channel[]> {
+    const lnd = this.lndClient.getLnd();
+    const { channels } = await lnService.getChannels({ lnd });
+
+    if (!channels || !Array.isArray(channels)) {
+      return [];
+    }
+
+    return channels;
+  }
+
+  /**
+   * Enriches channel data with additional metadata
+   *
+   * Currently adds node aliases to each channel, but could be
+   * extended to add other metadata in the future.
+   *
+   * @param channels - Raw channel data to enrich
+   * @returns Channels with added metadata
+   * @throws Error if metadata enrichment fails
+   */
+  private async enrichChannelsWithMetadata(channels: Channel[]): Promise<Channel[]> {
+    if (channels.length === 0) {
+      return [];
+    }
+
+    return this.addNodeAliases(channels);
   }
 
   /**
@@ -197,17 +242,26 @@ export class ChannelQueryHandler {
 
       // Fetch all unique node infos in parallel
       const pubkeys = Array.from(pubkeyMap.keys());
+      // Track errors for each pubkey
+      const errorMap = new Map<string, { type: string; message: string }>();
+
       const nodeInfoPromises = pubkeys.map(async (pubkey) => {
         try {
           const nodeInfo = await lnService.getNodeInfo({ lnd, public_key: pubkey });
           return { pubkey, alias: nodeInfo?.alias || 'Unknown' };
         } catch (error) {
+          const sanitizedError = sanitizeError(error);
           logger.debug(`Could not fetch alias for node ${pubkey.substring(0, 8)}...`, {
             component: 'channel-handler',
             requestId,
-            error: sanitizeError(error).message,
+            error: sanitizedError.message,
           });
-          return { pubkey, alias: 'Unknown' };
+          // Track the error for this pubkey
+          errorMap.set(pubkey, {
+            type: 'alias_retrieval_failed',
+            message: sanitizedError.message,
+          });
+          return { pubkey, alias: 'Unknown (Error retrieving)' };
         }
       });
 
@@ -218,11 +272,22 @@ export class ChannelQueryHandler {
         pubkeyMap.set(info.pubkey, info.alias);
       });
 
-      // Add aliases to channels
-      const result = channels.map((channel) => ({
-        ...channel,
-        remote_alias: pubkeyMap.get(channel.remote_pubkey) || 'Unknown',
-      }));
+      // Add aliases and error information to channels
+      const result = channels.map((channel) => {
+        const errorInfo = errorMap.get(channel.remote_pubkey);
+        if (errorInfo) {
+          return {
+            ...channel,
+            remote_alias: pubkeyMap.get(channel.remote_pubkey) || 'Unknown',
+            _error: errorInfo,
+          };
+        } else {
+          return {
+            ...channel,
+            remote_alias: pubkeyMap.get(channel.remote_pubkey) || 'Unknown',
+          };
+        }
+      });
 
       const duration = Date.now() - startTime;
       logger.info('Node alias retrieval completed', {
@@ -245,8 +310,15 @@ export class ChannelQueryHandler {
         error: sanitizedError.message,
       });
 
-      // Return original channels if we can't add aliases
-      return channels;
+      // Mark channels with error information to indicate failure
+      return channels.map((channel) => ({
+        ...channel,
+        remote_alias: 'Unknown (Error retrieving)',
+        _error: {
+          type: 'alias_retrieval_failed',
+          message: sanitizedError.message,
+        },
+      }));
     }
   }
 

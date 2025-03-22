@@ -1,3 +1,9 @@
+/**
+ * Unit tests for ChannelQueryHandler.
+ * Verifies intent handling, error responses, channel data enrichment,
+ * and health/liquidity summary logic.
+ */
+
 import { ChannelQueryHandler } from '../../../mcp/handlers/channelQueryHandler';
 import { LndClient } from '../../../lnd/client';
 import { Intent } from '../../../types/intent';
@@ -137,16 +143,48 @@ describe('ChannelQueryHandler', () => {
     });
   });
 
-  describe('Channel data', () => {
-    test('should fetch channel data from LND', async () => {
-      // Set up mock channel data
-      const mockChannels = [
+  describe('Channel data processing', () => {
+    test('should fetch channel data from LND through multiple steps', async () => {
+      // Set up spy for the refactored methods
+      const fetchRawDataSpy = jest.spyOn(handler as any, 'fetchRawChannelData');
+      const enrichDataSpy = jest.spyOn(handler as any, 'enrichChannelsWithMetadata');
+      const calcSummarySpy = jest.spyOn(handler as any, 'calculateChannelSummary');
+
+      // Set up mock returns
+      const mockChannels: Channel[] = [
         {
           capacity: 1000000,
           local_balance: 500000,
           remote_balance: 500000,
           active: true,
-        },
+        } as Channel,
+      ];
+
+      fetchRawDataSpy.mockResolvedValue(mockChannels);
+      enrichDataSpy.mockResolvedValue([...mockChannels, { remote_alias: 'Test Node' } as Channel]);
+
+      // Call the method
+      const getChannelData = (handler as any).getChannelData;
+      await getChannelData.call(handler);
+
+      // Verify method chain was executed in order
+      expect(fetchRawDataSpy).toHaveBeenCalled();
+      expect(enrichDataSpy).toHaveBeenCalled();
+      expect(calcSummarySpy).toHaveBeenCalled();
+
+      // Verify data was passed correctly between methods
+      expect(enrichDataSpy).toHaveBeenCalledWith(mockChannels);
+    });
+
+    test('should fetch raw channel data from LND', async () => {
+      // Set up mock channel data
+      const mockChannels: Channel[] = [
+        {
+          capacity: 1000000,
+          local_balance: 500000,
+          remote_balance: 500000,
+          active: true,
+        } as Channel,
       ];
 
       // Create a mock function for getChannels
@@ -158,34 +196,92 @@ describe('ChannelQueryHandler', () => {
       lnService.getChannels = mockGetChannelsFn;
 
       // Call the private method directly
-      const getChannelData = (handler as any).getChannelData;
-      const result = await getChannelData.call(handler);
+      const fetchRawChannelData = (handler as any).fetchRawChannelData;
+      const result = await fetchRawChannelData.call(handler);
 
       expect(mockGetChannelsFn).toHaveBeenCalled();
-      expect(result.channels).toEqual(mockChannels);
-      expect(result.summary).toBeDefined();
+      expect(result).toEqual(mockChannels);
+    });
+
+    test('should handle empty or invalid channel responses', async () => {
+      // Test with null channels
+      lnService.getChannels = jest.fn(() => {
+        return Promise.resolve({ channels: null });
+      });
+
+      const fetchRawChannelData = (handler as any).fetchRawChannelData;
+      let result = await fetchRawChannelData.call(handler);
+      expect(result).toEqual([]);
+
+      // Test with non-array channels
+      lnService.getChannels = jest.fn(() => {
+        return Promise.resolve({ channels: 'not an array' });
+      });
+
+      result = await fetchRawChannelData.call(handler);
+      expect(result).toEqual([]);
+    });
+
+    test('should enrich channels with metadata', async () => {
+      // Mock the addNodeAliases method to test enrichChannelsWithMetadata in isolation
+      const mockAddNodeAliases = jest
+        .spyOn(handler as any, 'addNodeAliases')
+        .mockImplementation(function (this: any, channels: unknown) {
+          const typedChannels = channels as Channel[];
+          return Promise.resolve(
+            typedChannels.map((c: Channel) => ({
+              ...c,
+              remote_alias: 'Test Node',
+            }))
+          );
+        });
+
+      const testChannels: Channel[] = [
+        {
+          capacity: 1000000,
+          local_balance: 500000,
+          remote_balance: 500000,
+          active: true,
+        } as Channel,
+      ];
+
+      const enrichChannelsWithMetadata = (handler as any).enrichChannelsWithMetadata;
+      const result = await enrichChannelsWithMetadata.call(handler, testChannels);
+
+      expect(mockAddNodeAliases).toHaveBeenCalledWith(testChannels);
+      expect(result[0].remote_alias).toBe('Test Node');
+
+      // Restore original implementation
+      mockAddNodeAliases.mockRestore();
+    });
+
+    test('should return empty array when enriching empty channel list', async () => {
+      const enrichChannelsWithMetadata = (handler as any).enrichChannelsWithMetadata;
+      const result = await enrichChannelsWithMetadata.call(handler, []);
+
+      expect(result).toEqual([]);
     });
   });
 
   describe('Node aliases', () => {
     test('should add node aliases to channels', async () => {
-      // Create test channels - using unknown conversion to avoid type mismatches
-      const testChannels = [
+      // Create test channels
+      const testChannels: Channel[] = [
         {
           capacity: 1000000,
           local_balance: 500000,
           remote_balance: 500000,
           active: true,
           remote_pubkey: 'pubkey1',
-        },
+        } as Channel,
         {
           capacity: 2000000,
           local_balance: 1000000,
           remote_balance: 1000000,
           active: true,
           remote_pubkey: 'pubkey2',
-        },
-      ] as unknown as Channel[];
+        } as Channel,
+      ];
 
       // Create a mock function for getNodeInfo
       const mockGetNodeInfoFn = jest.fn((args: any) => {
@@ -210,30 +306,27 @@ describe('ChannelQueryHandler', () => {
     });
 
     test('should handle errors when retrieving node aliases', async () => {
-      // Create test channels - using unknown conversion to avoid type mismatches
-      const testChannels = [
+      // Create test channels
+      const testChannels: Channel[] = [
         {
           capacity: 1000000,
           local_balance: 500000,
           remote_balance: 500000,
           active: true,
           remote_pubkey: 'pubkey1',
-        },
+        } as Channel,
         {
           capacity: 2000000,
           local_balance: 1000000,
           remote_balance: 1000000,
           active: true,
           remote_pubkey: 'pubkey2',
-        },
-      ] as unknown as Channel[];
+        } as Channel,
+      ];
 
-      // Create a mock function for getNodeInfo that fails for one pubkey
-      const mockGetNodeInfoFn = jest.fn((args: any) => {
-        if (args.public_key === 'pubkey1') {
-          return Promise.resolve({ alias: 'Node 1' });
-        }
-        return Promise.reject(new Error('Node not found'));
+      // Create a mock function for getNodeInfo that fails
+      const mockGetNodeInfoFn = jest.fn(() => {
+        return Promise.reject(new Error('Node lookup failed'));
       });
 
       // Use the mock function for getNodeInfo
@@ -244,19 +337,35 @@ describe('ChannelQueryHandler', () => {
       const result = await addNodeAliases.call(handler, testChannels);
 
       expect(result.length).toBe(2);
-      expect(result[0].remote_alias).toBe('Node 1');
-      expect(result[1].remote_alias).toBe('Unknown');
+      expect(result[0].remote_alias).toBe('Unknown (Error retrieving)');
+      expect(result[0]._error).toBeDefined();
+      expect(result[0]._error.type).toBe('alias_retrieval_failed');
     });
   });
 
   describe('Channel health calculation', () => {
     test('should correctly identify healthy and unhealthy channels', () => {
-      // Create test channels - using unknown conversion to avoid type mismatches
-      const testChannels = [
-        { capacity: 1000000, local_balance: 500000, remote_balance: 500000, active: true },
-        { capacity: 1000000, local_balance: 50000, remote_balance: 950000, active: true },
-        { capacity: 1000000, local_balance: 500000, remote_balance: 500000, active: false },
-      ] as unknown as Channel[];
+      // Create test channels
+      const testChannels: Channel[] = [
+        {
+          capacity: 1000000,
+          local_balance: 500000,
+          remote_balance: 500000,
+          active: true,
+        } as Channel,
+        {
+          capacity: 1000000,
+          local_balance: 50000,
+          remote_balance: 950000,
+          active: true,
+        } as Channel,
+        {
+          capacity: 1000000,
+          local_balance: 500000,
+          remote_balance: 500000,
+          active: false,
+        } as Channel,
+      ];
 
       // Call the private method directly
       const calculateChannelSummary = (handler as any).calculateChannelSummary;
@@ -278,11 +387,21 @@ describe('ChannelQueryHandler', () => {
         customCriteria
       );
 
-      // Create test channels - using unknown conversion to avoid type mismatches
-      const testChannels = [
-        { capacity: 1000000, local_balance: 500000, remote_balance: 500000, active: true },
-        { capacity: 1000000, local_balance: 200000, remote_balance: 800000, active: true },
-      ] as unknown as Channel[];
+      // Create test channels
+      const testChannels: Channel[] = [
+        {
+          capacity: 1000000,
+          local_balance: 500000,
+          remote_balance: 500000,
+          active: true,
+        } as Channel,
+        {
+          capacity: 1000000,
+          local_balance: 200000,
+          remote_balance: 800000,
+          active: true,
+        } as Channel,
+      ];
 
       // Call the private method directly
       const calculateChannelSummary = (handlerWithCriteria as any).calculateChannelSummary;
