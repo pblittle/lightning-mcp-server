@@ -8,7 +8,7 @@
 
 const { spawn } = require('child_process');
 const path = require('path');
-const fs = require('fs');
+const logger = require('../src/utils/logger').default;
 
 /**
  * Sanitize error messages to remove sensitive information
@@ -74,7 +74,7 @@ function sanitizeErrorMessage(message) {
 }
 
 // Run the server
-console.log('Starting LND MCP server...');
+logger.info('Starting LND MCP server...');
 
 // Use ts-node to run the TypeScript file directly
 const serverProcess = spawn('npx', ['ts-node', path.resolve(__dirname, '../src/index.ts')], {
@@ -84,22 +84,22 @@ const serverProcess = spawn('npx', ['ts-node', path.resolve(__dirname, '../src/i
 
 // Handle process events
 serverProcess.on('error', (error) => {
-  console.error('Error starting server:', sanitizeErrorMessage(error.message));
+  logger.error('Error starting server:', sanitizeErrorMessage(error.message));
   process.exit(1);
 });
 
 serverProcess.on('exit', (code) => {
-  console.log(`Server exited with code ${code}`);
+  logger.info(`Server exited with code ${code}`);
   process.exit(code);
 });
 
 // Handle signals to gracefully shut down
 process.on('SIGINT', () => {
-  console.log('Shutting down server...');
+  logger.info('Shutting down server...');
   serverProcess.kill('SIGINT');
 });
 
 process.on('SIGTERM', () => {
-  console.log('Shutting down server...');
+  logger.info('Shutting down server...');
   serverProcess.kill('SIGTERM');
 });

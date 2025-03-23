@@ -10,24 +10,10 @@
 const path = require('path');
 const fs = require('fs');
 const readline = require('readline');
+const logger = require('../src/utils/logger').default;
 
 // Debug flag - set to true for detailed logging
 const DEBUG = true;
-
-// Use a simple console logger instead of the actual logger
-const logger = {
-  info: (message) =>
-    console.error(`[INFO] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
-  warn: (message) =>
-    console.error(`[WARN] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
-  error: (message) =>
-    console.error(`[ERROR] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
-  debug: (message) =>
-    DEBUG &&
-    console.error(`[DEBUG] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
-  fatal: (message) =>
-    console.error(`[FATAL] ${typeof message === 'object' ? JSON.stringify(message) : message}`),
-};
 
 // Create mock files if they don't exist
 const MOCK_DIR = path.resolve(__dirname, 'mock');
@@ -376,7 +362,8 @@ class SimpleMcpServer {
         logger.info(`[${requestId}] Sending response: ${jsonString}`);
       }
 
-      // Important: Use console.log for the actual response
+      // IMPORTANT: Use console.log for the actual response
+      // This is part of the MCP protocol and must use console.log
       console.log(jsonString);
     } catch (error) {
       logger.error(`[${requestId}] Error sending response: ${error.message}`);
@@ -384,6 +371,7 @@ class SimpleMcpServer {
 
       // Try to send a simplified error response
       try {
+        // Must use console.log for JSON-RPC protocol
         console.log(
           JSON.stringify({
             jsonrpc: '2.0',
@@ -418,7 +406,8 @@ class SimpleMcpServer {
         logger.warn(`[${requestId}] Sending error response: ${jsonString}`);
       }
 
-      // Important: Use console.log for the actual response
+      // IMPORTANT: Use console.log for the actual response
+      // This is part of the MCP protocol and must use console.log
       console.log(jsonString);
     } catch (e) {
       logger.error(`[${requestId}] Error sending error response: ${e.message}`);
@@ -426,6 +415,7 @@ class SimpleMcpServer {
 
       // Try to send a very basic error response
       try {
+        // Must use console.log for JSON-RPC protocol
         console.log(
           JSON.stringify({
             jsonrpc: '2.0',
