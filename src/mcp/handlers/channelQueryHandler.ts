@@ -8,12 +8,21 @@
 import * as lnService from 'ln-service';
 import { LndClient } from '../../lnd/client';
 import { Intent } from '../../types/intent';
-import { Channel, ChannelQueryResult, ChannelSummary, HealthCriteria } from '../../types/channel';
+import { Channel, ChannelSummary, HealthCriteria } from '../../types/channel';
+export type ChannelQueryResult = {
+  channels: Channel[];
+  summary: ChannelSummary;
+};
 import { ChannelFormatter } from '../formatters/channelFormatter';
 import logger from '../../utils/logger';
 import { sanitizeError } from '../../utils/sanitize';
 
 export interface QueryResult<TData = Record<string, unknown>> {
+  tools?: {
+    name: string;
+    inputSchema: { type: 'object'; properties?: { [key: string]: unknown } };
+    description?: string;
+  }[];
   response: string;
   data: TData;
   type?: string;
