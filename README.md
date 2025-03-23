@@ -11,8 +11,10 @@ LND MCP Server connects your Lightning Network node to LLM applications through 
 ## Features
 
 - Query LND node data using natural language
+- Strong data validation and type safety with Zod schema validation
 - Secure connection via TLS certificates and macaroons
 - Mock LND mode for development without a real node
+- MCP protocol compliant responses for LLM integration
 - Compatible with any MCP-supporting LLM (Block Goose, Claude, etc.)
 
 ## Quick Start

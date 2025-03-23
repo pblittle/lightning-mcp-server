@@ -40,6 +40,7 @@ The LND MCP Server leverages a modern technology stack to ensure a clean and mai
 
 - **Node.js & TypeScript:** The server is built with Node.js and TypeScript, ensuring type safety, maintainability, and modern JavaScript features.
 - **LND Integration (ln-service):** Uses the `ln-service` library to establish secure connections with LND nodes, utilizing TLS certificates and macaroons.
+- **Schema Validation (Zod):** Enforces strict data validation throughout the application, providing runtime type checking and ensuring protocol compliance.
 - **Natural Language Processing:** A custom NLP module (located in `src/mcp/nlp/intentParser.ts`) parses user queries to identify intent types (e.g., channel list, channel health, channel liquidity).
 - **JSON-RPC Communication:** The server communicates using JSON-RPC over standard input/output, providing a flexible interface for LLM applications.
 - **Logging and Error Handling:** Utilizes structured logging (e.g., Pino) and robust error handling mechanisms to ensure reliability and security.
