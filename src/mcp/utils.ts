@@ -1,7 +1,8 @@
 /**
- * src/mcp/utils.ts
- *
  * Utility functions specific to MCP protocol handling
+ *
+ * Provides helper functions for error code mapping and environment
+ * variable parsing to support the MCP server implementation.
  */
 
 import { ErrorCode } from '@modelcontextprotocol/sdk/types.js';

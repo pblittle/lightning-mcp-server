@@ -1,5 +1,8 @@
 /**
- * Tests for format_bitcoin utility functions.
+ * Unit tests for Bitcoin formatting utilities
+ *
+ * Verifies proper satoshi-to-BTC conversion and formatting with
+ * appropriate decimal precision and denomination labels.
  */
 
 import { formatSatsToBtc, formatSatoshis } from './format_bitcoin';

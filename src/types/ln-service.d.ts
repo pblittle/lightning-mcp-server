@@ -1,8 +1,8 @@
 /**
- * Type declarations for ln-service
+ * Type declarations for ln-service module
  *
- * This file provides type declarations for the ln-service module
- * to make TypeScript happy when using ts-node.
+ * Defines TypeScript interfaces for ln-service API methods and response objects
+ * to ensure type safety when interacting with Lightning Network nodes.
  */
 
 declare module 'ln-service' {

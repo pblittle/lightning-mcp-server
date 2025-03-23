@@ -1,7 +1,8 @@
 /**
- * src/__tests__/mcp/utils.test.ts
- *
  * Tests for MCP utility functions
+ *
+ * Verifies error code determination logic and environment variable parsing
+ * functionality used by the MCP server implementation.
  */
 
 import { ErrorCode } from '@modelcontextprotocol/sdk/types.js';
