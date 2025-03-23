@@ -21,24 +21,21 @@ function sanitizeErrorMessage(message) {
   }
 
   // Redact certificate paths
-  let sanitized = message.replace(/\/[^\s\/]+\/[^\s\/]*cert[^\s\/]*/gi, '[REDACTED_CERT_PATH]');
+  let sanitized = message.replace(/\/[^\s/]+\/[^\s/]*cert[^\s/]*/gi, '[REDACTED_CERT_PATH]');
   sanitized = sanitized.replace(
     /[a-zA-Z]:\\[^\s\\]+\\[^\s\\]*cert[^\s\\]*/gi,
     '[REDACTED_CERT_PATH]'
   );
 
   // Redact macaroon paths
-  sanitized = sanitized.replace(
-    /\/[^\s\/]+\/[^\s\/]*macaroon[^\s\/]*/gi,
-    '[REDACTED_MACAROON_PATH]'
-  );
+  sanitized = sanitized.replace(/\/[^\s/]+\/[^\s/]*macaroon[^\s/]*/gi, '[REDACTED_MACAROON_PATH]');
   sanitized = sanitized.replace(
     /[a-zA-Z]:\\[^\s\\]+\\[^\s\\]*macaroon[^\s\\]*/gi,
     '[REDACTED_MACAROON_PATH]'
   );
 
   // Redact key paths
-  sanitized = sanitized.replace(/\/[^\s\/]+\/[^\s\/]*key[^\s\/]*/gi, '[REDACTED_KEY_PATH]');
+  sanitized = sanitized.replace(/\/[^\s/]+\/[^\s/]*key[^\s/]*/gi, '[REDACTED_KEY_PATH]');
   sanitized = sanitized.replace(
     /[a-zA-Z]:\\[^\s\\]+\\[^\s\\]*key[^\s\\]*/gi,
     '[REDACTED_KEY_PATH]'
@@ -46,7 +43,7 @@ function sanitizeErrorMessage(message) {
 
   // Redact credential paths
   sanitized = sanitized.replace(
-    /\/[^\s\/]+\/[^\s\/]*(?:secret|token|password|credential)[^\s\/]*/gi,
+    /\/[^\s/]+\/[^\s/]*(?:secret|token|password|credential)[^\s/]*/gi,
     '[REDACTED_CREDENTIAL]'
   );
   sanitized = sanitized.replace(
@@ -67,7 +64,7 @@ function sanitizeErrorMessage(message) {
   );
 
   // Redact generic file paths
-  sanitized = sanitized.replace(/\/[^\s\/]+\/[^\s\/]+\.[a-zA-Z0-9]+/g, '[REDACTED_PATH]');
+  sanitized = sanitized.replace(/\/[^\s/]+\/[^\s/]+\.[a-zA-Z0-9]+/g, '[REDACTED_PATH]');
   sanitized = sanitized.replace(/[a-zA-Z]:\\[^\s\\]+\\[^\s\\]+\.[a-zA-Z0-9]+/g, '[REDACTED_PATH]');
 
   return sanitized;
