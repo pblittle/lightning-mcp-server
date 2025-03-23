@@ -10,7 +10,13 @@
 const path = require('path');
 const fs = require('fs');
 const readline = require('readline');
-const logger = require('../src/utils/logger').default;
+// Create a simple logger since we can't import the actual logger
+const logger = {
+  info: (message, meta) => console.error(`[INFO] ${message}`, meta || ''),
+  warn: (message, meta) => console.error(`[WARN] ${message}`, meta || ''),
+  error: (message, meta) => console.error(`[ERROR] ${message}`, meta || ''),
+  debug: (message, meta) => console.error(`[DEBUG] ${message}`, meta || ''),
+};
 
 // Debug flag - set to true for detailed logging
 const DEBUG = true;
@@ -342,11 +348,8 @@ class SimpleMcpServer {
             type: 'text',
             text: response,
           },
-          {
-            type: 'application/json',
-            text: JSON.stringify(data, null, 2),
-          },
         ],
+        data: data, // Include structured data directly in the response
       },
     };
 

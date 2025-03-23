@@ -109,7 +109,7 @@ export class McpServer {
           throw error;
         }
 
-        if (name === 'channel_query') {
+        if (name === 'queryChannels' || name === 'channel_query') {
           const startTime = Date.now();
           const parsedArgs = JSON.parse(args as string);
           const query = parsedArgs.query;

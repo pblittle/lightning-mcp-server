@@ -3,7 +3,6 @@ import { IntentParser } from '../nlp/intentParser';
 import { ChannelQueryHandler } from '../handlers/channelQueryHandler';
 import logger from '../../utils/logger';
 import { sanitizeError } from '../../utils/sanitize';
-
 /**
  * Tool for querying Lightning Network channels using natural language
  */
@@ -48,7 +47,12 @@ export class ChannelQueryTool {
     };
   }
 
-  async executeQuery(query: string): Promise<{ response: string; data: Record<string, any> }> {
+  public async executeQuery(query: string): Promise<{
+    tools: any[];
+    response: string;
+    data: any;
+    _meta?: Record<string, unknown>;
+  }> {
     try {
       logger.info(`Received query: "${query}"`);
 
@@ -59,14 +63,29 @@ export class ChannelQueryTool {
       const result = await this.queryHandler.handleQuery(intent);
 
       logger.info(`Query handled successfully: "${query}"`);
-      return result;
+
+      // Format the result to match MCP SDK expected structure
+      return {
+        tools: [],
+        response: result.response,
+        data: result.data,
+        _meta: {
+          type: result.type || 'channel_query',
+          text: result.text || result.response,
+        },
+      };
     } catch (error) {
       const sanitizedError = sanitizeError(error);
       logger.error(`Error executing query: ${sanitizedError.message}`);
 
       return {
+        tools: [],
         response: `I encountered an error while processing your query: ${sanitizedError.message}`,
         data: {},
+        _meta: {
+          type: 'error',
+          error: sanitizedError.message,
+        },
       };
     }
   }
