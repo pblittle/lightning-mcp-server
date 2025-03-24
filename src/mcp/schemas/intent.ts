@@ -6,7 +6,7 @@ import { z } from 'zod';
  */
 export const IntentSchema = z.object({
   // Type of channel operation to perform
-  type: z.enum(['channel_list', 'channel_health', 'channel_liquidity']),
+  type: z.enum(['channel_list', 'channel_health', 'channel_liquidity', 'channel_unhealthy']),
 
   // Operation parameters
   parameters: z.object({

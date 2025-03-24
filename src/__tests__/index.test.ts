@@ -1,4 +1,3 @@
-import * as dotenv from 'dotenv';
 import { bootstrap } from '../index';
 import { McpServer, createMcpServer } from '../mcp/server';
 import { createLndClient } from '../lnd/client';

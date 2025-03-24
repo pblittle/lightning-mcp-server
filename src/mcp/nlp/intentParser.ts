@@ -14,6 +14,8 @@ export class IntentParser {
 
       if (this.isChannelListQuery(query)) {
         type = 'channel_list';
+      } else if (this.isUnhealthyChannelsQuery(query)) {
+        type = 'channel_unhealthy';
       } else if (this.isChannelHealthQuery(query)) {
         type = 'channel_health';
       } else if (this.isChannelLiquidityQuery(query)) {
@@ -46,6 +48,11 @@ export class IntentParser {
   }
 
   private isChannelListQuery(query: string): boolean {
+    // Make sure we specifically exclude unhealthy channels queries from matching as list queries
+    if (this.isUnhealthyChannelsQuery(query)) {
+      return false;
+    }
+
     const patterns = [
       /show (me |my |all )*channels/i,
       /list (me |my |all )*channels/i,
@@ -63,7 +70,6 @@ export class IntentParser {
       /(inactive|active) channels/i,
       /problematic channels/i,
       /channel (issues|problems)/i,
-      /unhealthy channels/i,
     ];
 
     return patterns.some((pattern) => pattern.test(query));
@@ -76,6 +82,20 @@ export class IntentParser {
       /(local|remote) balance/i,
       /liquidity distribution/i,
       /channel capacity/i,
+    ];
+
+    return patterns.some((pattern) => pattern.test(query));
+  }
+
+  private isUnhealthyChannelsQuery(query: string): boolean {
+    const patterns = [
+      /show unhealthy channels/i,
+      /unhealthy channels/i,
+      /problematic channels/i,
+      /channels (that need|needing|requiring) attention/i,
+      /broken channels/i,
+      /inactive channels/i,
+      /channels (with|having) (issues|problems)/i,
     ];
 
     return patterns.some((pattern) => pattern.test(query));

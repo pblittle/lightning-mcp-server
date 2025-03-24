@@ -1,7 +1,12 @@
 /**
  * Types of channel queries supported
  */
-export type IntentType = 'channel_list' | 'channel_health' | 'channel_liquidity' | 'unknown';
+export type IntentType =
+  | 'channel_list'
+  | 'channel_health'
+  | 'channel_liquidity'
+  | 'channel_unhealthy'
+  | 'unknown';
 
 /**
  * Query intent with parameters
