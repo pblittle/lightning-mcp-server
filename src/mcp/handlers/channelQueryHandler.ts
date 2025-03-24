@@ -2,20 +2,20 @@
  * Handler for processing channel-related queries (list, health, liquidity)
  * using data from the connected LND node.
  *
- * Part of the MCP server's natural language interface.
+ * Part of the MCP server's natural language interface. Implements Zod validation
+ * to ensure data integrity throughout the query processing lifecycle.
  */
 
 import * as lnService from 'ln-service';
 import { LndClient } from '../../lnd/client';
 import { Intent } from '../../types/intent';
-import { Channel, ChannelSummary, HealthCriteria } from '../../types/channel';
-export type ChannelQueryResult = {
-  channels: Channel[];
-  summary: ChannelSummary;
-};
+import { Channel, ChannelSummary, HealthCriteria, ChannelQueryResult } from '../../types/channel';
 import { ChannelFormatter } from '../formatters/channelFormatter';
 import logger from '../../utils/logger';
 import { sanitizeError } from '../../utils/sanitize';
+import { validateWithZod } from '../../utils/zod-validators';
+import { ChannelSchema } from '../schemas/channel';
+import { ChannelQueryResultSchema } from '../../schemas/channel-response';
 
 export interface QueryResult<TData = Record<string, unknown>> {
   tools?: {
@@ -102,12 +102,21 @@ export class ChannelQueryHandler {
           };
           break;
 
+        case 'channel_unhealthy':
+          result = {
+            type: 'channel_unhealthy',
+            text: this.formatter.formatUnhealthyChannels(channelData),
+            response: this.formatter.formatUnhealthyChannels(channelData),
+            data: channelData,
+          };
+          break;
+
         default:
           result = {
             type: 'unknown',
-            text: "I didn't understand that query. Try asking about your channel list, health, or liquidity.",
+            text: "I didn't understand that query. Try asking about your channel list, health, liquidity, or unhealthy channels.",
             response:
-              "I didn't understand that query. Try asking about your channel list, health, or liquidity.",
+              "I didn't understand that query. Try asking about your channel list, health, liquidity, or unhealthy channels.",
             data: {} as ChannelQueryResult,
           };
       }
@@ -157,14 +166,28 @@ export class ChannelQueryHandler {
    */
   private async getChannelData(): Promise<ChannelQueryResult> {
     try {
-      const channels = await this.fetchRawChannelData();
-      const enrichedChannels = await this.enrichChannelsWithMetadata(channels);
+      // Fetch and validate raw channel data
+      const rawChannels = await this.fetchRawChannelData();
+
+      // Each raw channel is validated against the channel schema
+      const validatedChannels = rawChannels.map((channel) =>
+        validateWithZod(ChannelSchema, channel)
+      );
+
+      // Enrich channels with additional metadata
+      const enrichedChannels = await this.enrichChannelsWithMetadata(validatedChannels);
+
+      // Calculate summary statistics
       const summary = this.calculateChannelSummary(enrichedChannels);
 
-      return {
+      // Validate the entire result structure before returning
+      const result = {
         channels: enrichedChannels,
         summary,
       };
+
+      // Ensure the complete result matches the expected schema
+      return validateWithZod(ChannelQueryResultSchema, result);
     } catch (error) {
       const sanitizedError = sanitizeError(error);
       logger.error(`Error fetching channel data: ${sanitizedError.message}`);

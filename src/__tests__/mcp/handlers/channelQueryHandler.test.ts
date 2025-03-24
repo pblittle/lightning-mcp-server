@@ -157,11 +157,18 @@ describe('ChannelQueryHandler', () => {
           local_balance: 500000,
           remote_balance: 500000,
           active: true,
+          remote_pubkey: '03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f',
+          channel_point: 'txid:0',
         } as Channel,
       ];
 
       fetchRawDataSpy.mockResolvedValue(mockChannels);
-      enrichDataSpy.mockResolvedValue([...mockChannels, { remote_alias: 'Test Node' } as Channel]);
+      // Mock a fully valid enriched channel with all required fields
+      const enrichedChannels = mockChannels.map((channel) => ({
+        ...channel,
+        remote_alias: 'Test Node',
+      }));
+      enrichDataSpy.mockResolvedValue(enrichedChannels);
 
       // Call the method
       const getChannelData = (handler as any).getChannelData;
@@ -242,6 +249,8 @@ describe('ChannelQueryHandler', () => {
           local_balance: 500000,
           remote_balance: 500000,
           active: true,
+          remote_pubkey: '03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f',
+          channel_point: 'txid:0',
         } as Channel,
       ];
 
@@ -352,18 +361,24 @@ describe('ChannelQueryHandler', () => {
           local_balance: 500000,
           remote_balance: 500000,
           active: true,
+          remote_pubkey: '03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f',
+          channel_point: 'txid:1',
         } as Channel,
         {
           capacity: 1000000,
           local_balance: 50000,
           remote_balance: 950000,
           active: true,
+          remote_pubkey: '022c699df736064b51a33017abfc4d577d133f7124ac117d3d9f9633b6297a4a42',
+          channel_point: 'txid:2',
         } as Channel,
         {
           capacity: 1000000,
           local_balance: 500000,
           remote_balance: 500000,
           active: false,
+          remote_pubkey: '03d31479e789014a96ba6dd60d50210045aa8a7d6a1af21535d056f7a9ad2878f2',
+          channel_point: 'txid:3',
         } as Channel,
       ];
 
@@ -394,12 +409,16 @@ describe('ChannelQueryHandler', () => {
           local_balance: 500000,
           remote_balance: 500000,
           active: true,
+          remote_pubkey: '03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f',
+          channel_point: 'txid:4',
         } as Channel,
         {
           capacity: 1000000,
           local_balance: 200000,
           remote_balance: 800000,
           active: true,
+          remote_pubkey: '022c699df736064b51a33017abfc4d577d133f7124ac117d3d9f9633b6297a4a42',
+          channel_point: 'txid:5',
         } as Channel,
       ];
 
