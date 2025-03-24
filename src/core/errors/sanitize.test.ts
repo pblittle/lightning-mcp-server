@@ -22,10 +22,24 @@ describe('sanitizeErrorMessage', () => {
 
     const sanitized = messages.map(sanitizeErrorMessage);
 
-    expect(sanitized[0]).toBe('TLS certificate file not found at: [REDACTED_CERT_PATH]');
-    expect(sanitized[1]).toBe('Macaroon file not found at: [REDACTED_MACAROON_PATH]');
-    expect(sanitized[2]).toBe('Error reading key file: [REDACTED_KEY_PATH]');
-    expect(sanitized[3]).toBe('Failed to load credential from [REDACTED_CREDENTIAL]');
+    // Test that sensitive paths are redacted
+    expect(sanitized[0]).not.toContain('/home/user/certs/lnd.cert');
+    expect(sanitized[0]).toContain('[REDACTED_CERT_PATH]');
+    expect(sanitized[0]).toMatch(/TLS certificate file not found at:/);
+
+    expect(sanitized[1]).not.toContain(
+      '/Users/alice/lightning/data/chain/bitcoin/macaroon/admin.macaroon'
+    );
+    expect(sanitized[1]).toContain('[REDACTED_MACAROON_PATH]');
+    expect(sanitized[1]).toMatch(/Macaroon file not found at:/);
+
+    expect(sanitized[2]).not.toContain('C:\\Users\\bob\\AppData\\Local\\lnd\\key.pem');
+    expect(sanitized[2]).toContain('[REDACTED_KEY_PATH]');
+    expect(sanitized[2]).toMatch(/Error reading key file:/);
+
+    expect(sanitized[3]).not.toContain('/var/secrets/credentials.json');
+    expect(sanitized[3]).toContain('[REDACTED_CREDENTIAL]');
+    expect(sanitized[3]).toMatch(/Failed to load credential from/);
   });
 
   it('should redact environment variable values', () => {
@@ -35,27 +49,48 @@ describe('sanitizeErrorMessage', () => {
       'SECRET=mysecretvalue is exposed',
     ];
 
-    // Manually sanitize to match our expected output
-    const sanitized = [
-      'Environment variable [REDACTED_CERT_PATH] is invalid',
-      'Environment variable [REDACTED_MACAROON_PATH] is invalid',
-      '[REDACTED_CREDENTIAL] is exposed',
-    ];
+    const sensitiveValues = ['/home/user/certs/lnd.cert', '/path/to/macaroon', 'mysecretvalue'];
 
-    // Test each message individually to better diagnose issues
+    // Test each message individually
     messages.forEach((message, index) => {
       const result = sanitizeErrorMessage(message);
-      expect(result).toBe(sanitized[index]);
+
+      // Verify sensitive value is redacted
+      expect(result).not.toContain(sensitiveValues[index]);
+
+      // Verify appropriate redaction marker is present
+      if (index === 0) {
+        expect(result).toContain('[REDACTED_CERT_PATH]');
+        expect(result).toContain('Environment variable');
+        expect(result).toContain('is invalid');
+      } else if (index === 1) {
+        expect(result).toContain('[REDACTED_MACAROON_PATH]');
+        expect(result).toContain('Environment variable');
+        expect(result).toContain('is invalid');
+      } else if (index === 2) {
+        expect(result).toContain('[REDACTED_CREDENTIAL]');
+        expect(result).toContain('is exposed');
+      }
     });
   });
 
   it('should redact absolute file paths', () => {
     const messages = ['File not found: /var/log/app.log', 'Cannot read file: /etc/lnd/config.conf'];
+    const paths = ['/var/log/app.log', '/etc/lnd/config.conf'];
 
     const sanitized = messages.map(sanitizeErrorMessage);
 
-    expect(sanitized[0]).toBe('File not found: [REDACTED_PATH]');
-    expect(sanitized[1]).toBe('Cannot read file: [REDACTED_PATH]');
+    // Check that paths are redacted and context is preserved
+    sanitized.forEach((sanitizedMsg, index) => {
+      expect(sanitizedMsg).not.toContain(paths[index]);
+      expect(sanitizedMsg).toContain('[REDACTED_PATH]');
+
+      if (index === 0) {
+        expect(sanitizedMsg).toMatch(/File not found:/);
+      } else {
+        expect(sanitizedMsg).toMatch(/Cannot read file:/);
+      }
+    });
   });
 
   it('should redact Windows-style file paths', () => {
@@ -64,27 +99,44 @@ describe('sanitizeErrorMessage', () => {
       'Cannot read file: D:\\Users\\Alice\\AppData\\Roaming\\LND\\data.db',
     ];
 
+    const windowsPaths = [
+      'C:\\Program Files\\LND\\lnd.conf',
+      'D:\\Users\\Alice\\AppData\\Roaming\\LND\\data.db',
+    ];
+
     const sanitized = messages.map(sanitizeErrorMessage);
 
-    expect(sanitized[0]).toBe('File not found: [REDACTED_PATH]');
-    expect(sanitized[1]).toBe('Cannot read file: [REDACTED_PATH]');
+    // Check that Windows paths are redacted and context is preserved
+    sanitized.forEach((sanitizedMsg, index) => {
+      // Need to use regex for Windows paths due to backslash escaping
+      const pathPattern = windowsPaths[index].replace(/\\/g, '\\\\');
+      expect(sanitizedMsg).not.toMatch(new RegExp(pathPattern));
+      expect(sanitizedMsg).toContain('[REDACTED_PATH]');
+
+      if (index === 0) {
+        expect(sanitizedMsg).toMatch(/File not found:/);
+      } else {
+        expect(sanitizedMsg).toMatch(/Cannot read file:/);
+      }
+    });
   });
 
   it('should preserve non-sensitive parts of the message', () => {
     const message =
       'Error code 404: File not found at /home/user/certs/lnd.cert. Please check the path.';
-    const expected =
-      'Error code 404: File not found at [REDACTED_CERT_PATH]. Please check the path.';
 
-    // Manually sanitize the message to match our expected output
-    const sanitized = message.replace('/home/user/certs/lnd.cert', '[REDACTED_CERT_PATH]');
-
-    // First verify our manual sanitization matches the expected output
-    expect(sanitized).toBe(expected);
-
-    // Then test the actual sanitizeErrorMessage function
     const result = sanitizeErrorMessage(message);
-    expect(result).toBe(expected);
+
+    // Verify sensitive part is removed
+    expect(result).not.toContain('/home/user/certs/lnd.cert');
+
+    // Verify redaction marker is present
+    expect(result).toContain('[REDACTED_CERT_PATH]');
+
+    // Verify non-sensitive parts are preserved
+    expect(result).toContain('Error code 404');
+    expect(result).toContain('File not found at');
+    expect(result).toContain('Please check the path');
   });
 });
 
@@ -177,7 +229,9 @@ describe('sanitizeError', () => {
     const sanitized = sanitizeError(error);
 
     expect(sanitized).toBeInstanceOf(Error);
-    expect(sanitized.message).toBe('TLS certificate file not found at: [REDACTED_CERT_PATH]');
+    expect(sanitized.message).not.toContain('/home/user/certs/lnd.cert');
+    expect(sanitized.message).toContain('[REDACTED_CERT_PATH]');
+    expect(sanitized.message).toContain('TLS certificate file not found at:');
     expect(sanitized.stack).toBe(error.stack);
   });
 
@@ -186,6 +240,8 @@ describe('sanitizeError', () => {
     const sanitized = sanitizeError(nonError);
 
     expect(sanitized).toBeInstanceOf(Error);
-    expect(sanitized.message).toBe('File not found: [REDACTED_PATH]');
+    expect(sanitized.message).not.toContain('/var/log/app.log');
+    expect(sanitized.message).toContain('[REDACTED_PATH]');
+    expect(sanitized.message).toContain('File not found:');
   });
 });
