@@ -1,58 +1,56 @@
-import { Channel as LnServiceChannel } from 'ln-service';
+/**
+ * Type definitions for Lightning Network channels and related data structures.
+ *
+ * This file contains TypeScript types derived from Zod schemas to ensure
+ * consistency between runtime validation and compile-time type checking.
+ * All types are aligned with their corresponding schema definitions.
+ */
+
+import { z } from 'zod';
+import { ChannelSchema } from '../mcp/schemas/channel';
+import {
+  ChannelSummarySchema,
+  ChannelQueryResultSchema,
+  ChannelQueryResponseSchema,
+  HealthCriteriaSchema,
+} from '../schemas/channel-response';
 
 /**
- * Health criteria for channels
- * Defines thresholds for determining channel health
+ * Health criteria for channels.
+ *
+ * Defines thresholds for determining channel health based on local/remote
+ * balance ratios to identify channels that need rebalancing.
  */
-export interface HealthCriteria {
-  /**
-   * Minimum acceptable local balance ratio (0.0 to 1.0)
-   * Channels with local balance ratio below this are considered unhealthy
-   */
-  minLocalRatio: number;
-
-  /**
-   * Maximum acceptable local balance ratio (0.0 to 1.0)
-   * Channels with local balance ratio above this are considered unhealthy
-   */
-  maxLocalRatio: number;
-}
+export type HealthCriteria = z.infer<typeof HealthCriteriaSchema>;
 
 /**
- * Lightning Network Channel
- * Extends ln-service Channel type with additional fields
+ * Lightning Network Channel.
+ *
+ * Represents a payment channel between two Lightning Network nodes.
+ * Contains capacity, balance, and status information.
  */
-export interface Channel extends LnServiceChannel {
-  remote_alias?: string;
-}
+export type Channel = z.infer<typeof ChannelSchema>;
 
 /**
- * Channel Summary Statistics
+ * Channel Summary Statistics.
+ *
+ * Aggregated metrics about a node's channel portfolio including
+ * total capacity, balance distribution, and health status counts.
  */
-export interface ChannelSummary {
-  totalCapacity: number;
-  totalLocalBalance: number;
-  totalRemoteBalance: number;
-  activeChannels: number;
-  inactiveChannels: number;
-  averageCapacity: number;
-  mostImbalancedChannel?: Channel;
-  healthyChannels: number;
-  unhealthyChannels: number;
-}
+export type ChannelSummary = z.infer<typeof ChannelSummarySchema>;
 
 /**
- * Channel Query Result
+ * Channel Query Result.
+ *
+ * Complete result of a channel query containing both individual
+ * channel details and summary statistics.
  */
-export interface ChannelQueryResult {
-  channels: Channel[];
-  summary: ChannelSummary;
-}
+export type ChannelQueryResult = z.infer<typeof ChannelQueryResultSchema>;
 
 /**
- * Channel Query Response
+ * Channel Query Response.
+ *
+ * MCP response format for channel queries, combining human-readable
+ * text and structured data for display and programmatic use.
  */
-export interface ChannelQueryResponse {
-  response: string;
-  data: ChannelQueryResult;
-}
+export type ChannelQueryResponse = z.infer<typeof ChannelQueryResponseSchema>;
