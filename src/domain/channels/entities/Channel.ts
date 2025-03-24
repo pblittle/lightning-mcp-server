@@ -7,7 +7,6 @@
  */
 
 import { z } from 'zod';
-import { ChannelSchema } from '../schemas/channel';
 import {
   ChannelSummarySchema,
   ChannelQueryResultSchema,
@@ -24,12 +23,10 @@ import {
 export type HealthCriteria = z.infer<typeof HealthCriteriaSchema>;
 
 /**
- * Lightning Network Channel.
- *
- * Represents a payment channel between two Lightning Network nodes.
- * Contains capacity, balance, and status information.
+ * Import Channel type from schema definition.
+ * This avoids duplication and ensures consistency between schema and type.
  */
-export type Channel = z.infer<typeof ChannelSchema>;
+export { Channel } from '../schemas/channel';
 
 /**
  * Channel Summary Statistics.
