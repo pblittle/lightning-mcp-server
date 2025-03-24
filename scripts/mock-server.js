@@ -31,14 +31,62 @@ if (!fs.existsSync(MOCK_DIR)) {
   fs.mkdirSync(MOCK_DIR, { recursive: true });
 }
 
-// Create mock cert file if it doesn't exist
+// Create mock TLS certificate file if it doesn't exist
+// This is a properly formatted X.509 certificate in PEM format
+// but clearly labeled for testing purposes only
 if (!fs.existsSync(MOCK_CERT_PATH)) {
-  fs.writeFileSync(MOCK_CERT_PATH, 'MOCK TLS CERTIFICATE');
+  // We'll use OpenSSL to generate a proper self-signed certificate
+  const { execSync } = require('child_process');
+  try {
+    // Create the directory if it doesn't exist
+    if (!fs.existsSync(MOCK_DIR)) {
+      fs.mkdirSync(MOCK_DIR, { recursive: true });
+    }
+
+    // Generate self-signed certificate
+    execSync(
+      'openssl req -x509 -newkey rsa:4096 -keyout temp_key.pem -out mock-cert.pem -days 3650 -nodes ' +
+        '-subj "/CN=localhost/O=LND-Mock-Server/OU=Testing"',
+      { cwd: MOCK_DIR }
+    );
+
+    // Remove the temporary key file
+    if (fs.existsSync(path.resolve(MOCK_DIR, 'temp_key.pem'))) {
+      fs.unlinkSync(path.resolve(MOCK_DIR, 'temp_key.pem'));
+    }
+
+    logger.info('Generated realistic mock TLS certificate for testing');
+  } catch (error) {
+    logger.error(`Failed to generate certificate with OpenSSL: ${error.message}`);
+    logger.info('Falling back to placeholder certificate');
+    // If OpenSSL fails, fall back to a simple placeholder
+    fs.writeFileSync(MOCK_CERT_PATH, 'MOCK TLS CERTIFICATE');
+  }
 }
 
 // Create mock macaroon file if it doesn't exist
+// This creates a binary file that has the correct macaroon format structure
+// but is clearly labeled as a test macaroon
 if (!fs.existsSync(MOCK_MACAROON_PATH)) {
-  fs.writeFileSync(MOCK_MACAROON_PATH, 'MOCK MACAROON');
+  try {
+    // A proper macaroon has a specific binary structure
+    // This is a minimal valid macaroon format with "test-macaroon" identifier
+    const macaroonHex =
+      '0201036c6e6400000000000000000000000a746573742d6d61636172006f6f6e' +
+      '000201036c6e640000000a010101001a0c08daa6fdd099b3c90110001a1a0a12' +
+      '18424e1ce9e5c72c4e8e2b876520de94c6cb3c0c2318c53a';
+
+    // Convert hex to binary and write to file
+    const macaroonBinary = Buffer.from(macaroonHex, 'hex');
+    fs.writeFileSync(MOCK_MACAROON_PATH, macaroonBinary);
+
+    logger.info('Generated realistic mock macaroon for testing');
+  } catch (error) {
+    logger.error(`Failed to create macaroon: ${error.message}`);
+    logger.info('Falling back to placeholder macaroon');
+    // If conversion fails, fall back to a simple placeholder
+    fs.writeFileSync(MOCK_MACAROON_PATH, 'MOCK MACAROON');
+  }
 }
 
 // Set environment variables for testing
@@ -281,7 +329,61 @@ class SimpleMcpServer {
     let response = '';
     let data = {};
 
-    if (query.match(/list|show|what channels/i)) {
+    // First check more specific patterns, then more general ones
+    if (query.match(/only.*with.*bitrefill|channels.*bitrefill.*only/i)) {
+      // Query that specifically asks for ONLY Bitrefill channels
+      response =
+        'Channel with Bitrefill:\n\nBitrefill: 0.01000000 BTC (1,000,000 sats) (active)\n\nThis channel has 50% local balance and 50% remote balance.';
+      data = {
+        channels: [
+          {
+            capacity: 1000000,
+            local_balance: 500000,
+            remote_balance: 500000,
+            channel_point: 'txid:1',
+            active: true,
+            remote_pubkey: '022c699df736064b51a33017abfc4d577d133f7124ac117d3d9f9633b6297a4a42',
+            remote_alias: 'Bitrefill',
+          },
+        ],
+        summary: {
+          totalCapacity: 1000000,
+          totalLocalBalance: 500000,
+          totalRemoteBalance: 500000,
+          activeChannels: 1,
+          inactiveChannels: 0,
+          totalChannels: 1,
+        },
+      };
+    } else if (
+      query.match(
+        /only.*unhealthy|unhealthy.*only|problematic.*only|inactive.*only|only.*problematic|only.*inactive/i
+      )
+    ) {
+      // Query that specifically asks for ONLY problematic channels
+      response =
+        'Channel Health Summary: 1 channel needs attention.\n\nYou have 1 inactive channel that needs attention:\n1. LN+: 0.00500000 BTC (500,000 sats) (inactive)\n';
+      data = {
+        channels: [
+          {
+            capacity: 500000,
+            local_balance: 250000,
+            remote_balance: 250000,
+            channel_point: 'txid:4',
+            active: false,
+            remote_pubkey: '023bcd532c35920149718b0f318c1906bec9e7d889c6e93aad7e93b3e51714aaf9',
+            remote_alias: 'LN+',
+          },
+        ],
+        summary: {
+          healthyChannels: 4,
+          unhealthyChannels: 1,
+          activeChannels: 4,
+          inactiveChannels: 1,
+          totalChannels: 5,
+        },
+      };
+    } else if (query.match(/list|show|what channels/i)) {
       response =
         'Your node has 5 channels with a total capacity of 0.05000000 BTC (5,000,000 sats). 4 channels are active and 1 is inactive.\n\nYour largest channels:\n1. ACINQ: 0.02000000 BTC (2,000,000 sats) (active)\n2. Bitrefill: 0.01000000 BTC (1,000,000 sats) (active)\n3. LightningTipBot: 0.00800000 BTC (800,000 sats) (active)\n4. Wallet of Satoshi: 0.00700000 BTC (700,000 sats) (active)\n5. LN+: 0.00500000 BTC (500,000 sats) (inactive)';
       data = {
@@ -295,31 +397,86 @@ class SimpleMcpServer {
             remote_pubkey: '03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f',
             remote_alias: 'ACINQ',
           },
-          // More channels...
+          {
+            capacity: 1000000,
+            local_balance: 500000,
+            remote_balance: 500000,
+            channel_point: 'txid:1',
+            active: true,
+            remote_pubkey: '022c699df736064b51a33017abfc4d577d133f7124ac117d3d9f9633b6297a4a42',
+            remote_alias: 'Bitrefill',
+          },
+          {
+            capacity: 800000,
+            local_balance: 400000,
+            remote_balance: 400000,
+            channel_point: 'txid:2',
+            active: true,
+            remote_pubkey: '03d31479e789014a96ba6dd60d50210045aa8a7d6a1af21535d056f7a9ad2878f2',
+            remote_alias: 'LightningTipBot',
+          },
+          {
+            capacity: 700000,
+            local_balance: 210000,
+            remote_balance: 490000,
+            channel_point: 'txid:3',
+            active: true,
+            remote_pubkey: '035e4ff418fc8b5554c5d9eea66396c227bd429a3251c8cbc711002ba215bfc226',
+            remote_alias: 'Wallet of Satoshi',
+          },
+          {
+            capacity: 500000,
+            local_balance: 250000,
+            remote_balance: 250000,
+            channel_point: 'txid:4',
+            active: false,
+            remote_pubkey: '023bcd532c35920149718b0f318c1906bec9e7d889c6e93aad7e93b3e51714aaf9',
+            remote_alias: 'LN+',
+          },
         ],
         summary: {
           totalCapacity: 5000000,
-          totalLocalBalance: 2500000,
-          totalRemoteBalance: 2500000,
+          totalLocalBalance: 2360000,
+          totalRemoteBalance: 2640000,
           activeChannels: 4,
           inactiveChannels: 1,
           averageCapacity: 1000000,
           healthyChannels: 4,
           unhealthyChannels: 1,
+          totalChannels: 5,
         },
       };
     } else if (query.match(/health|status|inactive|problematic/i)) {
+      // General health query that returns all channels with a summary
       response =
         'Channel Health Summary: 4 healthy, 1 needs attention.\n\nYou have 1 inactive channel that needs attention:\n1. LN+: 0.00500000 BTC (500,000 sats)\n';
       data = {
         channels: [
-          // Channel data...
+          {
+            capacity: 2000000,
+            local_balance: 1000000,
+            remote_balance: 1000000,
+            channel_point: 'txid:0',
+            active: true,
+            remote_pubkey: '03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f',
+            remote_alias: 'ACINQ',
+          },
+          {
+            capacity: 500000,
+            local_balance: 250000,
+            remote_balance: 250000,
+            channel_point: 'txid:4',
+            active: false,
+            remote_pubkey: '023bcd532c35920149718b0f318c1906bec9e7d889c6e93aad7e93b3e51714aaf9',
+            remote_alias: 'LN+',
+          },
         ],
         summary: {
           healthyChannels: 4,
           unhealthyChannels: 1,
           activeChannels: 4,
           inactiveChannels: 1,
+          totalChannels: 5,
         },
       };
     } else if (query.match(/liquidity|balance|imbalanced/i)) {
