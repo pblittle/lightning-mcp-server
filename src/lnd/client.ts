@@ -21,6 +21,7 @@ export class LndClient {
 
   /**
    * Creates a new LND client with the given configuration
+   * @param config The application configuration containing LND connection details
    */
   constructor(config: Config) {
     this.config = config;
