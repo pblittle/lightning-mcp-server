@@ -1,12 +1,15 @@
-import { bootstrap } from '../index';
-import { McpServer, createMcpServer } from '../mcp/server';
-import { createLndClient } from '../lnd/client';
+/**
+ * Unit tests for application bootstrap process.
+ * Verifies application initialization, error handling, and shutdown.
+ */
+
+import { bootstrap } from './index';
+import { McpServer } from './interfaces/mcp/McpServer';
+import { createMcpServer } from './composition';
 
 // Mock dependencies
-jest.mock('../lnd/client');
-
-// Mock the necessary dependencies
-jest.mock('../config', () => ({
+jest.mock('./composition');
+jest.mock('./core/config', () => ({
   config: {
     nodeEnv: 'test',
     port: 3000,
@@ -36,22 +39,9 @@ jest.mock('../config', () => ({
 }));
 
 // Mock the MCP server module
-jest.mock('../mcp/server');
+jest.mock('./interfaces/mcp/McpServer');
 
-// Setup mock implementation before each test
-beforeEach(() => {
-  // Create a mock server instance
-  const mockServer = {
-    start: jest.fn().mockResolvedValue(undefined),
-    stop: jest.fn().mockResolvedValue(undefined),
-  };
-
-  // Set up mock implementations
-  (McpServer as jest.Mock).mockImplementation(() => mockServer);
-  (createMcpServer as jest.Mock).mockResolvedValue(mockServer);
-});
-
-jest.mock('../utils/logger', () => ({
+jest.mock('./core/logging/logger', () => ({
   __esModule: true,
   default: {
     info: jest.fn(),
@@ -64,11 +54,16 @@ jest.mock('../utils/logger', () => ({
   logError: jest.fn(),
 }));
 
+jest.mock('./core/errors/sanitize', () => ({
+  sanitizeError: jest.fn((error) => (error instanceof Error ? error : new Error(String(error)))),
+}));
+
 jest.mock('dotenv', () => ({
   config: jest.fn().mockReturnValue({ parsed: {} }),
 }));
 
 describe('Application Entry Point', () => {
+  let mockServer: jest.Mocked<McpServer>;
   const originalExit = process.exit;
 
   beforeAll(() => {
@@ -83,26 +78,37 @@ describe('Application Entry Point', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Create a mock server instance
+    mockServer = {
+      start: jest.fn().mockResolvedValue(undefined),
+      stop: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<McpServer>;
+
+    // Set up mock implementations
+    (McpServer as jest.Mock).mockImplementation(() => mockServer);
+    (createMcpServer as jest.Mock).mockResolvedValue(mockServer);
   });
 
   test('initializes the application correctly', async () => {
     // Act & Assert
     // If bootstrap() completes without throwing an error, the test passes
     await expect(bootstrap()).resolves.not.toThrow();
+
+    // Verify MCP server was created and started
+    expect(createMcpServer).toHaveBeenCalled();
   });
 
   test('handles initialization errors properly', async () => {
     // Arrange
     const mockError = new Error('Initialization failed');
-    (createLndClient as jest.Mock).mockImplementationOnce(() => ({
-      checkConnection: jest.fn().mockRejectedValue(mockError),
-    }));
+    (createMcpServer as jest.Mock).mockRejectedValueOnce(mockError);
 
     // Act
     await bootstrap();
 
     // Assert
-    const logger = require('../utils/logger').default;
+    const logger = require('./core/logging/logger').default;
     expect(logger.error).toHaveBeenCalled();
     // Since we're mocking process.exit, it should still be called by exitProcess
     expect(process.exit).toHaveBeenCalledWith(1);
