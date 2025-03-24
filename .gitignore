@@ -36,4 +36,4 @@ repomix-output.*
 *.temp
 
 # Aider
-.aider*
+.aider*migration_backup_20250324_113054/
