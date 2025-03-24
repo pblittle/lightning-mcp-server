@@ -14,9 +14,9 @@ module.exports = {
     ],
   },
   moduleFileExtensions: ['ts', 'js', 'json', 'node'],
-  setupFiles: ['<rootDir>/src/__tests__/setup.ts'],
+  setupFiles: ['<rootDir>/src/test/setup.ts'],
   // Tell Jest to mock all imports from ln-service
   moduleNameMapper: {
-    '^ln-service$': '<rootDir>/src/__tests__/mocks/ln-service.mock.ts',
+    '^ln-service$': '<rootDir>/src/test/mocks/ln-service.mock.ts',
   },
 };

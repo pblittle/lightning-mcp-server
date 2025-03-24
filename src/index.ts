@@ -1,8 +1,17 @@
-import logger from './utils/logger';
-import { getConfig } from './config';
-import { createLndClient } from './lnd/client';
-import { createMcpServer } from './mcp/server';
-import { sanitizeError, sanitizeForLogging } from './utils/sanitize';
+/**
+ * @fileoverview Main application entry point. Initializes and coordinates components.
+ *
+ * Bootstraps the application by:
+ * 1. Loading configuration
+ * 2. Creating the LND client
+ * 3. Creating and starting the MCP server
+ * 4. Setting up graceful shutdown handling
+ */
+
+import logger from './core/logging/logger';
+import { getConfig } from './core/config';
+import { createMcpServer } from './composition';
+import { sanitizeError } from './core/errors/sanitize';
 
 /**
  * Exit the process safely
@@ -27,21 +36,13 @@ export async function bootstrap() {
     // Load configuration
     const config = getConfig();
 
-    // Create LND client
-    const lndClient = createLndClient(config);
-
-    // Check LND connection
-    await lndClient.checkConnection();
-
-    // Create and start MCP server
-    mcpServer = await createMcpServer(lndClient, config);
+    // Create and start the MCP server using the composition module
+    mcpServer = await createMcpServer(config);
 
     logger.info('LND MCP server started');
   } catch (error) {
     const sanitizedError = sanitizeError(error);
-    logger.error(`Failed to start application: ${sanitizedError.message}`, {
-      error: sanitizeForLogging(error),
-    });
+    logger.error(`Failed to start application: ${sanitizedError.message}`, sanitizedError);
     exitProcess(1);
   }
 }
@@ -60,9 +61,7 @@ async function shutdown() {
     logger.info('Server shutdown complete');
   } catch (error) {
     const sanitizedError = sanitizeError(error);
-    logger.error(`Error during shutdown: ${sanitizedError.message}`, {
-      error: sanitizeForLogging(error),
-    });
+    logger.error(`Error during shutdown: ${sanitizedError.message}`, sanitizedError);
   } finally {
     exitProcess(0);
   }
