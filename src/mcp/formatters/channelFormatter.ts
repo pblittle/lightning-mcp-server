@@ -139,4 +139,73 @@ export class ChannelFormatter {
 
     return response;
   }
+
+  formatUnhealthyChannels(data: ChannelQueryResult): string {
+    const { channels, summary } = data;
+
+    if (channels.length === 0) {
+      return "Your node doesn't have any channels to check health for.";
+    }
+
+    let response = `Your node has ${summary.unhealthyChannels} unhealthy channels out of ${channels.length} total channels.\n\n`;
+
+    // Get unhealthy channels
+    const unhealthyChannels = channels.filter((channel) => {
+      if (!channel.active) return true; // Inactive channels are unhealthy
+      const localRatio = channel.local_balance / channel.capacity;
+      return localRatio < 0.1 || localRatio > 0.9; // Extreme imbalance
+    });
+
+    if (unhealthyChannels.length === 0) {
+      return 'Good news! All your channels are healthy.';
+    }
+
+    // List inactive channels first
+    const inactiveChannels = unhealthyChannels.filter((c) => !c.active);
+    if (inactiveChannels.length > 0) {
+      response += `Inactive Channels (${inactiveChannels.length}):\n`;
+      inactiveChannels.forEach((channel, index) => {
+        const alias = channel.remote_alias || channel.remote_pubkey.substring(0, 10) + '...';
+        response += `${index + 1}. ${alias}: ${formatSatoshis(channel.capacity)} (inactive)\n`;
+      });
+      response += '\n';
+    }
+
+    // Then list imbalanced channels
+    const imbalancedChannels = unhealthyChannels.filter((c) => c.active);
+    if (imbalancedChannels.length > 0) {
+      response += `Imbalanced Channels (${imbalancedChannels.length}):\n`;
+      imbalancedChannels.forEach((channel, index) => {
+        const alias = channel.remote_alias || channel.remote_pubkey.substring(0, 10) + '...';
+        const localRatio = (channel.local_balance / channel.capacity) * 100;
+        const localPercent = Math.round(localRatio);
+        let imbalanceType = '';
+        if (localRatio < 10) {
+          imbalanceType = 'depleted local balance';
+        } else if (localRatio > 90) {
+          imbalanceType = 'depleted remote balance';
+        }
+        response += `${index + 1}. ${alias}: ${localPercent}% local / ${
+          100 - localPercent
+        }% remote (${imbalanceType})\n`;
+      });
+    }
+
+    // Add recommendations
+    response += '\nRecommendations:\n';
+    if (inactiveChannels.length > 0) {
+      response +=
+        '- For inactive channels: Try reconnecting to the peers or check if they are online\n';
+    }
+    if (imbalancedChannels.some((c) => c.local_balance / c.capacity < 0.1)) {
+      response +=
+        '- For channels with low local balance: Consider receiving more inbound liquidity\n';
+    }
+    if (imbalancedChannels.some((c) => c.local_balance / c.capacity > 0.9)) {
+      response +=
+        '- For channels with high local balance: Try routing payments through these channels\n';
+    }
+
+    return response;
+  }
 }
