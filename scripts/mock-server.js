@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Fixed LND MCP Mock Server
+ * LND MCP Mock Server
  *
  * This server implements a simplified MCP server with mocked LND connection
  * for testing natural language channel queries.
