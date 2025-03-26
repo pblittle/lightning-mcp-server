@@ -6,12 +6,17 @@ import { sanitizeError } from '../../core/errors/sanitize';
 
 /**
  * Interface for MCP tool result
+ *
+ * This represents the standardized response format for tool execution.
+ * The structure aligns with the MCP protocol expectations.
  */
 interface ToolResult {
-  tools: unknown[];
   response: string;
   data: Record<string, unknown>;
-  _meta?: Record<string, unknown>;
+  _meta: {
+    type: string;
+    error?: string;
+  };
 }
 
 /**
@@ -72,11 +77,8 @@ export class ChannelQueryTool {
 
       // Format the result to match MCP SDK expected structure
       return {
-        tools: [],
         response: result.response,
         data: result.data,
-        // The 'text' property is not part of the ChannelQueryResponse type as per the new schema.
-        // In accordance with the style guide, we provide only the 'type' field in the _meta object.
         _meta: {
           type: result.type || 'channel_query',
         },
@@ -86,7 +88,6 @@ export class ChannelQueryTool {
       logger.error(`Error executing query: ${sanitizedError.message}`);
 
       return {
-        tools: [],
         response: `I encountered an error while processing your query: ${sanitizedError.message}`,
         data: {},
         _meta: {
