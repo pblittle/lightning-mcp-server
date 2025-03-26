@@ -33,6 +33,21 @@ export class LndClient {
   }
 
   /**
+   * Factory method to create a new LND client with the given configuration
+   * @param config The application configuration containing LND connection details
+   * @returns A new LndClient instance
+   */
+  static create(config: Config): LndClient {
+    logger.debug('Creating new LND client', {
+      component: 'lnd-client',
+      host: config.lnd.host,
+      port: config.lnd.port,
+    });
+
+    return new LndClient(config);
+  }
+
+  /**
    * Creates an authenticated connection to the LND node
    */
   private createLndConnection(): lnService.AuthenticatedLnd {
@@ -148,17 +163,4 @@ export class LndClient {
       );
     }
   }
-}
-
-/**
- * Creates a new LND client with the given configuration
- */
-export function createLndClient(config: Config): LndClient {
-  logger.debug('Creating new LND client', {
-    component: 'lnd-client',
-    host: config.lnd.host,
-    port: config.lnd.port,
-  });
-
-  return new LndClient(config);
 }
