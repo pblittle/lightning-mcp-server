@@ -1,21 +1,31 @@
-# LND MCP Server
+# Lightning Network MCP Server
 
-An MCP server that connects to your Lightning Network node and enables natural language queries for channel information.
+An MCP server that connects to your Lightning Network node and enables natural language queries for channel information. Supports both direct LND connections and Lightning Node Connect (LNC) for secure remote access.
 
-> **Note:** The current version focuses on channel data. Additional LND data types will be added in future releases.
+> **Note:** The current version focuses on channel data. Additional Lightning Network data types will be added in future releases.
 
 ## What is it?
 
-LND MCP Server connects your Lightning Network node to LLM applications through the Model Context Protocol. Ask questions in natural language and get human-readable responses alongside structured JSON data.
+Lightning Network MCP Server connects your Lightning Network node to LLM applications through the Model Context Protocol. Ask questions in natural language and get human-readable responses alongside structured JSON data.
 
 ## Features
 
-- Query LND node data using natural language
-- Strong data validation and type safety with Zod schema validation
-- Secure connection via TLS certificates and macaroons
-- Mock LND mode for development without a real node
-- MCP protocol compliant responses for LLM integration
-- Compatible with any MCP-supporting LLM (Block Goose, Claude, etc.)
+- **Natural Language Queries:** Query Lightning Network node data using plain English
+- **Multiple Connection Types:**
+  - Direct LND connection via gRPC
+  - Lightning Node Connect (LNC) for secure remote access
+  - Mock mode for development without a real node
+- **Clean, Modular Design:**
+  - Flexible connection options
+  - Easily extensible for new features
+  - Type-safe throughout the codebase
+- **Developer-Friendly:**
+  - Strong data validation with Zod
+  - Comprehensive error handling and logging
+  - Clear separation of concerns
+- **MCP Protocol Integration:**
+  - Compliant responses for LLM integration
+  - Compatible with any MCP-supporting LLM (Claude, Block Goose, etc.)
 
 ## Quick Start
 
@@ -33,13 +43,12 @@ For quick testing without an LND node:
 
 ```bash
 # Run with mock data - no configuration needed
-# The mock server automatically creates necessary mock certificates and macaroons
 npm run mcp:mock
 ```
 
-### Run with Real LND Node
+### Run with Direct LND Connection
 
-To connect to a real LND node:
+To connect directly to an LND node:
 
 ```bash
 # Copy the example configuration
@@ -47,29 +56,68 @@ cp .env.example .env
 
 # Edit .env with your LND node details
 # Required settings:
+# CONNECTION_TYPE=lnd-direct
 # LND_TLS_CERT_PATH=/path/to/your/tls.cert
 # LND_MACAROON_PATH=/path/to/your/readonly.macaroon
 # LND_HOST=localhost
 # LND_PORT=10009
-# USE_MOCK_LND=false
 
-# Run the server with real LND connection
+# Run the server with LND connection
 npm run mcp:prod
 ```
 
-## Example Queries and Responses
+### Run with Lightning Node Connect (LNC)
+
+To connect remotely using Lightning Node Connect:
+
+```bash
+# Copy the example configuration
+cp .env.example .env
+
+# Edit .env with your LNC details
+# Required settings:
+# CONNECTION_TYPE=lnc
+# LNC_CONNECTION_STRING=your-connection-string
+# LNC_PAIRING_PHRASE=optional-pairing-phrase
+
+# Run the server with LNC connection
+npm run mcp:prod
+```
+
+## Example Queries
 
 Here are some natural language queries you can use:
 
 **Channel listing:**
 
-```bash
-> Show me all my channels
+```
+Show me all my channels
+List my active channels
+```
 
+**Channel health:**
+
+```
+What is the health of my channels?
+Do I have any inactive channels?
+```
+
+**Liquidity distribution:**
+
+```
+How is my channel liquidity distributed?
+Which channels are most imbalanced?
+```
+
+## Sample Response
+
+For a channel listing query, you'll get a response like:
+
+```
 Your node has 5 channels with a total capacity of 0.05000000 BTC (5,000,000 sats).
 4 channels are active and 1 is inactive.
 
-Your largest channels:
+Your channels:
 1. ACINQ: 0.02000000 BTC (2,000,000 sats) (active)
 2. Bitrefill: 0.01000000 BTC (1,000,000 sats) (active)
 3. LightningTipBot: 0.00800000 BTC (800,000 sats) (active)
@@ -77,47 +125,18 @@ Your largest channels:
 5. LN+: 0.00500000 BTC (500,000 sats) (inactive)
 ```
 
-**Channel health:**
-
-```bash
-> What is the health of my channels?
-
-Channel Health Summary: 4 healthy, 1 needs attention.
-
-You have 1 inactive channel that needs attention:
-1. LN+: 0.00500000 BTC (500,000 sats)
-```
-
-**Liquidity distribution:**
-
-```bash
-> How is my channel liquidity distributed?
-
-Liquidity Distribution: 0.02500000 BTC (2,500,000 sats) local (50%),
-0.02500000 BTC (2,500,000 sats) remote (50%).
-
-Your most balanced channels:
-1. ACINQ: 50% local / 50% remote
-2. Bitrefill: 50% local / 50% remote
-3. LightningTipBot: 50% local / 50% remote
-
-Your most imbalanced channels:
-1. Wallet of Satoshi: 30% local / 70% remote
-```
-
 ## Testing with Helper Scripts
 
-You can test the server with the included scripts:
+You can test the server with the included scripts. Make sure to have the mock server running first:
 
 ```bash
-# List all channels
-node test/real-queries/list.js
+# Start the mock server in one terminal
+npm run mcp:mock
 
-# Check channel health
-node test/real-queries/health.js
-
-# Check liquidity distribution
-node test/real-queries/liquidity.js
+# In another terminal, run test queries
+node test/real-queries/list.js    # List all channels
+node test/real-queries/health.js  # Check channel health
+node test/real-queries/liquidity.js  # Check liquidity distribution
 ```
 
 ## Using with MCP Inspector
@@ -135,17 +154,13 @@ npm run mcp:mock
 npx @modelcontextprotocol/inspector
 ```
 
-In the MCP Inspector web interface:
+## Architecture
 
-1. Click "Connect" in the top right
-2. Set transport type to "stdio"
-3. Provide the path to your `scripts/mock-server.js` file
-4. Click "Connect" and start asking questions
+For detailed architectural information, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## Documentation
+## Contributing
 
-- [Architecture](ARCHITECTURE.md) - Detailed design and implementation details
-- [Contributing](CONTRIBUTING.md) - Guidelines for developers
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and setup instructions.
 
 ## License
 

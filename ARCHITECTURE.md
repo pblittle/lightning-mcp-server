@@ -1,154 +1,260 @@
 # LND MCP Server Architecture
 
-This document provides a comprehensive architectural overview of the LND MCP Server—a clean, well-structured server that connects to an LND node and enables users to query node information using natural language. It serves both as a technical reference for developers and as an onboarding tool for new contributors.
+This document provides a comprehensive architectural overview of the Lightning Network MCP Server. It details the design principles, patterns, and implementations that enable natural language queries to a Lightning Network node.
 
----
+## 1. Architectural Overview
 
-## 1. High-Level Architectural Overview
+The Lightning Network MCP Server follows clean architecture principles with a domain-driven design approach. This creates clear separation of concerns, making the codebase maintainable, testable, and adaptable to different Lightning Network implementations.
 
-The LND MCP Server is designed to bridge the gap between complex LND node data and user-friendly, natural language queries. The core workflow can be summarized as follows:
+### Architectural Layers
 
-1. **Input:** A user (or LLM application) sends a natural language query.
-2. **NLP Processing:** The server parses the query to determine user intent.
-3. **Data Fetching:** Based on the identified intent, the server retrieves relevant channel or node data from the connected LND node.
-4. **Response Formatting:** The data is formatted into both human-readable text and structured JSON.
-5. **Output:** The response is returned via a JSON-RPC interface over standard input/output.
+1. **Domain Layer**: Contains the core business logic, entities, value objects, and gateway interfaces
+2. **Infrastructure Layer**: Implements the gateway interfaces for specific technologies (LND, LNC)
+3. **Application Layer**: Orchestrates the flow between interfaces and domain logic
+4. **Interface Layer**: Handles external communication via the MCP protocol
 
-Below is a Mermaid diagram illustrating the high-level data flow:
+## 2. Domain Layer
 
-```mermaid
-flowchart TD
-    A[User / LLM Application] -->|Sends Natural Language Query| B[MCP Server]
-    B -->|Parses Query| C[Intent Parser - NLP]
-    C -->|Determines Intent| D[Query Handler]
-    D -->|Fetches Data| E[LND Client]
-    E -->|Retrieves Node Data| F[LND Node]
-    F -->|Returns Data| E
-    E -->|Passes Data| D
-    D -->|Formats Response| G[Response Formatter]
-    G -->|Creates Human-Readable and JSON Output| H[JSON-RPC Response]
-    H --> A
+The domain layer is the heart of the application, containing:
+
+### Entities and Value Objects
+
+The domain model represents Lightning Network concepts through:
+
+- **Entities**: Core domain objects with identity and lifecycle
+  - `Channel`: Represents a Lightning Network payment channel
+- **Value Objects**: Immutable objects representing domain concepts without identity
+  - `Balance`: Represents channel balances (local/remote)
+  - `Capacity`: Represents channel capacity
+  - `HealthCriteria`: Defines thresholds for channel health
+
+Value objects ensure type safety and encapsulate validation and business rules:
+
+```typescript
+// Example of a Value Object
+export class Balance {
+  private readonly value: number;
+
+  private constructor(value: number) {
+    this.value = value;
+  }
+
+  static create(value: number): Balance {
+    if (value < 0) {
+      throw new Error('Balance cannot be negative');
+    }
+    return new Balance(value);
+  }
+
+  getValue(): number {
+    return this.value;
+  }
+
+  ratioOf(capacity: Capacity): number {
+    return this.value / capacity.getValue();
+  }
+}
 ```
 
----
+### Domain Handlers
 
-## 2. Technology Stack
+Domain handlers process domain-specific operations:
 
-The LND MCP Server leverages a modern technology stack to ensure a clean and maintainable codebase while securely interfacing with LND nodes and processing natural language queries efficiently.
+- `ChannelDomainHandler`: Manages channel-related queries
+- `DomainHandler`: Interface for all domain handlers
+- `DomainHandlerRegistry`: Maintains and routes to appropriate handlers
 
-### Key Components
+The handler pattern centralizes domain logic and separates it from infrastructure concerns.
 
-- **Node.js & TypeScript:** The server is built with Node.js and TypeScript, ensuring type safety, maintainability, and modern JavaScript features.
-- **LND Integration (ln-service):** Uses the `ln-service` library to establish secure connections with LND nodes, utilizing TLS certificates and macaroons.
-- **Schema Validation (Zod):** Enforces strict data validation throughout the application, providing runtime type checking and ensuring protocol compliance.
-- **Natural Language Processing:** A custom NLP module (located in `src/mcp/nlp/intentParser.ts`) parses user queries to identify intent types (e.g., channel list, channel health, channel liquidity).
-- **JSON-RPC Communication:** The server communicates using JSON-RPC over standard input/output, providing a flexible interface for LLM applications.
-- **Logging and Error Handling:** Utilizes structured logging (e.g., Pino) and robust error handling mechanisms to ensure reliability and security.
-- **Testing Frameworks:** Extensive unit and integration tests (using Jest) ensure that each module functions correctly in isolation and in the full data flow.
+### Gateway Pattern
 
----
+The gateway pattern provides a clean abstraction for accessing external systems:
 
-## 3. Design Decisions
+```typescript
+// Gateway interface in domain layer
+export interface LightningNetworkGateway {
+  getChannels(): Promise<ChannelData[]>;
+  getNodeInfo(pubkey: string): Promise<NodeInfo | undefined>;
+  getNodeAlias(pubkey: string): Promise<string | undefined>;
+  getConnection(): LightningNodeConnection;
+}
+```
 
-### Scalability
+This interface is implemented by concrete implementations in the infrastructure layer, allowing the domain layer to remain independent of specific Lightning Network implementations.
 
-- **Modular Architecture:** The separation of concerns (LND integration, NLP, query handling, and response formatting) allows each component to scale independently. New features or query types can be added with minimal impact on existing code.
-- **Asynchronous Processing:** Leveraging async/await and Promise-based patterns ensures non-blocking I/O, which is critical for handling multiple concurrent queries from service providers.
+### Intent Parsing with Strategy Pattern
 
-### Security
+The system uses the Strategy pattern for intent parsing:
 
-- **Secure LND Connections:** The use of TLS certificates and read-only macaroons ensures that communication with the LND node is secure and that only authorized queries are processed.
-- **Input Sanitization and Error Handling:** The server sanitizes incoming queries and logs errors without exposing sensitive information, thus maintaining security while troubleshooting.
+- `IntentParserStrategy`: Interface for different parsing strategies
+- `RegexIntentParser`: Implementation using regular expressions
+- `IntentParserFactory`: Creates the appropriate strategy based on configuration
 
-### Maintainability
+This approach allows for:
 
-- **Clean Code Practices:** The project adheres to Clean Code principles by using meaningful variable names, small focused functions, and extensive unit testing.
-- **TypeScript:** Type definitions across modules help maintain consistency and catch potential bugs at compile time.
+- Easy swapping of parsing implementations
+- Future enhancement with more sophisticated NLP strategies
+- Separation of parsing logic from domain handling
 
----
+## 3. Infrastructure Layer
 
-## 4. Codebase Structure Mapping
+The infrastructure layer implements domain interfaces for specific technologies:
 
-The repository is organized to clearly separate each functional area:
+### Gateway Implementations
 
-- **Configuration:**
-  - `src/config/` contains modules for loading and validating environment variables.
-- **LND Integration:**
+- `LndGateway`: Implementation for direct LND connections
+- `LncGateway`: Implementation for Lightning Node Connect
 
-  - `src/lnd/client.ts` establishes and maintains the connection to the LND node.
-  - `src/lnd/queries.ts` implements functions to query the LND node for channel and node information.
+Each gateway:
 
-- **Natural Language Processing:**
+- Implements the `LightningNetworkGateway` interface
+- Translates between domain models and external API data
+- Handles specific connection requirements
 
-  - `src/mcp/nlp/intentParser.ts` parses natural language queries and maps them to predefined intents.
+### Connection Management
 
-- **Query Handling:**
+- `LightningNodeConnection`: Abstraction for node connections
+- `ConnectionAuth`: Handles authentication for different connection types
+- `ConnectionFactory`: Creates connections based on configuration
 
-  - `src/mcp/handlers/channelQueryHandler.ts` processes queries related to channel data by interfacing with the LND client.
-  - `src/mcp/tools/channelQueryTool.ts` integrates NLP and query handling into an end-to-end tool.
+## 4. Application Layer
 
-- **Utilities:**
+The application layer orchestrates the flow between interfaces and domain:
 
-  - `src/utils/` includes logging, sanitization, and other helper functions.
+- `LightningQueryProcessor`: Processes queries by:
+  1. Parsing natural language to intents
+  2. Routing to appropriate domain handlers
+  3. Formatting responses for external consumption
 
-- **Type Definitions:**
+## 5. Interface Layer
 
-  - `src/types/` defines interfaces and types that maintain consistency across modules.
+The interface layer handles communication with external systems:
 
-- **Testing:**
-  - `src/__tests__/` contains unit and integration tests ensuring each component functions as intended.
+- `McpServer`: Implements the MCP protocol for communication with LLMs
+- `LightningMcpController`: Exposes Lightning Network functionality via MCP
 
----
+## 6. Data Flow
 
-## 5. Translating Natural Language to LND Commands
+```mermaid
+sequenceDiagram
+    participant User as User/LLM
+    participant MCP as MCP Server
+    participant Processor as Query Processor
+    participant Parser as Intent Parser
+    participant Handler as Domain Handler
+    participant Gateway as Lightning Gateway
+    participant Node as LND/LNC Node
 
-The system translates natural language queries into LND node commands through the following process:
+    User->>MCP: Natural language query
+    MCP->>Processor: Process query
+    Processor->>Parser: Parse intent
+    Parser-->>Processor: Enhanced intent
+    Processor->>Handler: Handle intent
+    Handler->>Gateway: Request data
+    Gateway->>Node: Query node
+    Node-->>Gateway: Raw node data
+    Gateway-->>Handler: Domain objects
+    Handler-->>Processor: Domain result
+    Processor-->>MCP: Formatted response
+    MCP-->>User: Human-readable and JSON response
+```
 
-1. **Query Reception:** A user query is received via JSON-RPC.
-2. **Intent Parsing:** The `IntentParser` module analyzes the text to determine whether the query is about listing channels, checking channel health, or analyzing liquidity.
-3. **Command Mapping:** Based on the identified intent, the appropriate query handler is invoked. For example, a channel list query triggers the channel query handler, which in turn calls functions in `ln-service` to fetch data.
-4. **Response Generation:** The results are processed and formatted into a dual response—human-readable text for easy consumption and structured JSON for programmatic use.
+## 7. Key Design Patterns
 
----
+### Gateway Pattern
 
-## 6. Error Handling, Security, and Testing
+The Gateway pattern provides a clean abstraction for external resources, allowing the domain layer to remain free of implementation details.
 
-### Error Handling
+### Strategy Pattern
 
-- **Structured Logging:** All errors and warnings are logged with sufficient context for debugging.
-- **Graceful Degradation:** When errors occur (e.g., invalid queries or connection issues), the server sends standardized JSON-RPC error responses.
-- **Input Sanitization:** The system sanitizes input data to prevent injection attacks or unintended behavior.
+The Strategy pattern enables swappable implementations for intent parsing, making it easy to enhance or replace parsing logic.
 
-### Security Measures
+### Factory Pattern
 
-- **Authentication:** Uses TLS certificates and macaroons to authenticate with the LND node.
-- **Environment Isolation:** Different environment configurations (development, test, production) allow for secure and isolated testing and deployment.
-- **Error Obfuscation:** Error messages are sanitized to avoid leaking sensitive details.
+Factories create appropriate implementations based on configuration:
 
-### Testing Approaches
+- `ConnectionFactory`: Creates the right connection type
+- `LightningNetworkGatewayFactory`: Creates the corresponding gateway
+- `IntentParserFactory`: Creates the appropriate parser
 
-- **Unit Tests:** Focus on individual modules (e.g., intent parsing, LND queries) to ensure they perform as expected.
-- **Integration Tests:** Validate the complete query flow from natural language input to LND data retrieval and response formatting.
-- **Mock LND Mode:** The server can run in a mock mode to simulate LND responses, which is useful for development and automated testing.
+### Value Object Pattern
 
----
+Value objects encapsulate domain concepts, ensuring validation and providing business methods. They're immutable and don't have identity.
 
-## 7. Future Development Considerations
+## 8. Type Safety and Validation
 
-### Enhancing Natural Language Capabilities
+The system leverages TypeScript and Zod for robust type safety:
 
-- **Advanced NLP Models:** Incorporate more sophisticated NLP techniques or leverage pre-trained language models to handle a wider variety of queries.
-- **Intent Expansion:** Add support for additional query types, such as node statistics, payment history, and network graph analysis.
+- **Static Types**: TypeScript provides compile-time checking
+- **Runtime Validation**: Zod schemas validate input/output data
+- **Schema/Type Alignment**: Types are derived from schemas to ensure consistency
 
-### Expanding Lightning Network Integrations
+```typescript
+// Schema definition with Zod
+export const ChannelParamsSchema = z.object({
+  capacity: z.number().positive(),
+  localBalance: z.number().nonnegative(),
+  remoteBalance: z.number().nonnegative(),
+  active: z.boolean(),
+  remotePubkey: z.string(),
+  channelPoint: z.string(),
+  remoteAlias: z.string().optional(),
+});
 
-- **Multi-Aspect Data Queries:** Extend beyond channel data to include comprehensive node information, transaction histories, and real-time network analytics.
-- **Improved Error Diagnostics:** Develop more detailed diagnostic tools and dashboards for operational insights and troubleshooting.
+// Type derived from schema
+export type ChannelParams = z.infer<typeof ChannelParamsSchema>;
+```
 
----
+## 9. Project Structure
+
+The project structure mirrors the architectural layers:
+
+```
+src/
+├── domain/            # Domain layer
+│   ├── channels/      # Channel domain
+│   │   ├── entities/  # Channel entities
+│   │   ├── schemas/   # Schema definitions
+│   │   └── value-objects/  # Domain value objects
+│   ├── handlers/      # Domain operation handlers
+│   ├── intents/       # Intent parsing
+│   │   ├── entities/  # Intent models
+│   │   ├── factories/ # Parser factories
+│   │   └── strategies/  # Parsing strategies
+│   ├── lightning/     # Lightning domain
+│   │   └── gateways/  # Gateway interfaces
+│   └── node/          # Node domain
+├── infrastructure/    # Infrastructure layer
+│   ├── factories/     # Infrastructure factories
+│   ├── lnd/           # LND implementation
+│   └── lnc/           # LNC implementation
+├── application/       # Application layer
+│   └── processors/    # Query processors
+├── interfaces/        # Interface layer
+│   └── mcp/           # MCP protocol implementation
+└── core/              # Cross-cutting concerns
+    ├── config/        # Configuration management
+    ├── errors/        # Error handling
+    ├── logging/       # Logging utilities
+    └── validation/    # Validation utilities
+```
+
+## 10. Future Extensibility
+
+The architecture supports several extension points:
+
+1. **New Lightning Implementations**: Add new gateway implementations in the infrastructure layer
+2. **Enhanced NLP**: Replace the RegexIntentParser with more sophisticated NLP
+3. **Additional Domain Data**: Expand beyond channels to payments, invoices, etc.
+4. **Advanced Health Metrics**: Enhance health criteria and analysis capabilities
 
 ## Conclusion
 
-The LND MCP Server is built with scalability, security, and maintainability in mind. Its clean architecture—backed by robust LND integration and efficient natural language processing—ensures that it meets the current needs of lightning network service providers while also providing a strong foundation for future expansion. This architecture document serves as both a technical guide and an onboarding resource, ensuring that contributors can quickly understand and build upon the system.
+The Lightning Network MCP Server architecture demonstrates how clean architecture and domain-driven design principles create a system that is:
 
-Happy hacking!
+- **Modular**: Components can be developed and tested independently
+- **Extensible**: New functionality can be added without disrupting existing code
+- **Maintainable**: Clear separation of concerns simplifies understanding and changes
+- **Adaptable**: Multiple Lightning Network implementations are supported through abstractions
+
+This architecture ensures the system can grow and adapt to changing requirements while maintaining a strong foundation of domain concepts and clean separation of concerns.
