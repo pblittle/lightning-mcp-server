@@ -11,18 +11,43 @@ loadEnvironment();
  * Configuration interface
  */
 export interface Config {
-  lnd: {
-    /** Path to the TLS certificate file */
-    tlsCertPath: string;
-    /** Path to the macaroon file for authentication */
-    macaroonPath: string;
-    /** LND host address */
-    host: string;
-    /** LND port number */
-    port: string;
-    /** Flag indicating whether to use mock LND */
-    useMockLnd: boolean;
+  /**
+   * Node connection configuration
+   */
+  node: {
+    /**
+     * Type of connection to use
+     */
+    connectionType: 'lnd-direct' | 'lnc' | 'mock';
+
+    /**
+     * LND direct connection configuration
+     */
+    lnd: {
+      /** Path to the TLS certificate file */
+      tlsCertPath: string;
+      /** Path to the macaroon file for authentication */
+      macaroonPath: string;
+      /** LND host address */
+      host: string;
+      /** LND port number */
+      port: string;
+    };
+
+    /**
+     * Lightning Node Connect configuration
+     */
+    lnc?: {
+      /** LNC connection string */
+      connectionString: string;
+      /** Optional pairing phrase */
+      pairingPhrase?: string;
+    };
   };
+
+  /**
+   * Server configuration
+   */
   server: {
     /** Server port number */
     port: number;
@@ -71,13 +96,10 @@ function setupMockLndIfNeeded(): void {
 
 /**
  * Validate required configuration values
- *
- * Note: Basic environment variable presence is already checked by the environment module,
- * this now focuses on application-specific validation
  */
 function validateConfig(): void {
-  // When not in mock mode, check if required files exist
-  if (process.env.USE_MOCK_LND !== 'true') {
+  // When not in mock mode and using direct LND connection, check if required files exist
+  if (process.env.USE_MOCK_LND !== 'true' && process.env.CONNECTION_TYPE === 'lnd-direct') {
     const tlsCertPath = process.env.LND_TLS_CERT_PATH;
     const macaroonPath = process.env.LND_MACAROON_PATH;
 
@@ -91,6 +113,13 @@ function validateConfig(): void {
 
     if (!existsSync(macaroonPath)) {
       throw new Error(`Macaroon file not found at: ${macaroonPath}`);
+    }
+  }
+
+  // Validate LNC configuration if using LNC
+  if (process.env.CONNECTION_TYPE === 'lnc') {
+    if (!process.env.LNC_CONNECTION_STRING) {
+      throw new Error('Missing required LNC configuration (connectionString)');
     }
   }
 
@@ -119,21 +148,37 @@ export function getConfig(): Config {
     // Validate configuration
     validateConfig();
 
+    // Determine connection type from environment or default to lnd-direct
+    const connectionType =
+      (process.env.CONNECTION_TYPE as 'lnd-direct' | 'lnc' | 'mock') ||
+      (process.env.USE_MOCK_LND === 'true' ? 'mock' : 'lnd-direct');
+
     // Create configuration object
     const config: Config = {
-      lnd: {
-        tlsCertPath: process.env.LND_TLS_CERT_PATH as string,
-        macaroonPath: process.env.LND_MACAROON_PATH as string,
-        host: process.env.LND_HOST || 'localhost',
-        port: process.env.LND_PORT || '10009',
-        useMockLnd: process.env.USE_MOCK_LND === 'true',
+      node: {
+        connectionType,
+        lnd: {
+          tlsCertPath: process.env.LND_TLS_CERT_PATH as string,
+          macaroonPath: process.env.LND_MACAROON_PATH as string,
+          host: process.env.LND_HOST || 'localhost',
+          port: process.env.LND_PORT || '10009',
+        },
       },
+
       server: {
         port: parseInt(process.env.PORT || '3000', 10),
         logLevel: process.env.LOG_LEVEL || 'info',
         environment: process.env.NODE_ENV || 'development',
       },
     };
+
+    // Add LNC config if needed
+    if (connectionType === 'lnc') {
+      config.node.lnc = {
+        connectionString: process.env.LNC_CONNECTION_STRING as string,
+        pairingPhrase: process.env.LNC_PAIRING_PHRASE,
+      };
+    }
 
     // Log sanitized configuration
     logger.info(`Configuration loaded successfully: ${JSON.stringify(sanitizeConfig(config))}`);

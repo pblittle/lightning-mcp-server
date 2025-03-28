@@ -52,12 +52,14 @@ describe('Configuration', () => {
 
       // Assert
       expect(config).toEqual({
-        lnd: {
-          tlsCertPath: expect.any(String),
-          macaroonPath: expect.any(String),
-          host: 'localhost',
-          port: '10009',
-          useMockLnd: true,
+        node: {
+          connectionType: 'mock',
+          lnd: {
+            tlsCertPath: expect.any(String),
+            macaroonPath: expect.any(String),
+            host: 'localhost',
+            port: '10009',
+          },
         },
         server: {
           port: 3000,
@@ -71,6 +73,7 @@ describe('Configuration', () => {
     test('returns correct configuration with real LND', () => {
       // Arrange
       process.env.USE_MOCK_LND = 'false';
+      process.env.CONNECTION_TYPE = 'lnd-direct';
       process.env.LND_TLS_CERT_PATH = '/path/to/tls.cert';
       process.env.LND_MACAROON_PATH = '/path/to/macaroon';
       process.env.LND_HOST = 'lnd.example.com';
@@ -81,12 +84,14 @@ describe('Configuration', () => {
 
       // Assert
       expect(config).toEqual({
-        lnd: {
-          tlsCertPath: '/path/to/tls.cert',
-          macaroonPath: '/path/to/macaroon',
-          host: 'lnd.example.com',
-          port: '10010',
-          useMockLnd: false,
+        node: {
+          connectionType: 'lnd-direct',
+          lnd: {
+            tlsCertPath: '/path/to/tls.cert',
+            macaroonPath: '/path/to/macaroon',
+            host: 'lnd.example.com',
+            port: '10010',
+          },
         },
         server: {
           port: 3000,
@@ -99,6 +104,7 @@ describe('Configuration', () => {
     test('throws error if TLS certificate file does not exist', () => {
       // Arrange
       process.env.USE_MOCK_LND = 'false';
+      process.env.CONNECTION_TYPE = 'lnd-direct';
       process.env.LND_TLS_CERT_PATH = '/path/to/tls.cert';
       process.env.LND_MACAROON_PATH = '/path/to/macaroon';
 
@@ -118,6 +124,7 @@ describe('Configuration', () => {
     test('throws error if macaroon file does not exist', () => {
       // Arrange
       process.env.USE_MOCK_LND = 'false';
+      process.env.CONNECTION_TYPE = 'lnd-direct';
       process.env.LND_TLS_CERT_PATH = '/path/to/tls.cert';
       process.env.LND_MACAROON_PATH = '/path/to/macaroon';
 

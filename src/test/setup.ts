@@ -1,19 +1,50 @@
-import { Buffer as ImportedBuffer } from 'buffer';
+/**
+ * @fileoverview Test environment setup.
+ *
+ * Configures the test environment with necessary mocks for WebAssembly.
+ */
 
-// Set up global test environment
-process.env.NODE_ENV = 'test';
+// Import just the jest object for mocking
+import { jest } from '@jest/globals';
 
-// Mock all WebAssembly-related functions to prevent issues with ln-service
-// We use a type assertion with unknown to bypass strict type checking for testing
-global.WebAssembly = {
-  Module: jest.fn(),
-  Instance: jest.fn(),
-  compile: jest.fn(),
-  validate: jest.fn(),
-  compileStreaming: jest.fn(),
-  instantiate: jest.fn(),
-  instantiateStreaming: jest.fn(),
-} as unknown as typeof WebAssembly;
+// Make this a module by adding an export
+export {};
 
-// Handle Buffer for proper type compatibility in tests
-global.Buffer = global.Buffer || ImportedBuffer;
+// Declare WebAssembly as a global variable to avoid TypeScript errors
+declare global {
+  interface Window {
+    WebAssembly: any;
+  }
+
+  // Extend the NodeJS global interface
+  // Using proper module augmentation
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace NodeJS {
+    interface Global {
+      WebAssembly: any;
+    }
+  }
+}
+
+// Mock implementation for jest functions if not globally available
+const mockFn = (returnValue?: any) => jest.fn(() => returnValue);
+
+// Provide a mock WebAssembly implementation for tests
+(global as any).WebAssembly = {
+  // Mock implementation of WebAssembly methods
+  compile: mockFn(Promise.resolve({})),
+  validate: mockFn(true),
+  instantiate: mockFn(Promise.resolve({})),
+  Module: function MockModule() {
+    return {};
+  },
+  Instance: function MockInstance() {
+    return {};
+  },
+  Memory: function MockMemory() {
+    return {};
+  },
+  Table: function MockTable() {
+    return {};
+  },
+};
