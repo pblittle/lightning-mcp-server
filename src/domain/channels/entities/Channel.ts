@@ -23,10 +23,10 @@ import {
 export type HealthCriteria = z.infer<typeof HealthCriteriaSchema>;
 
 /**
- * Import Channel type from schema definition.
+ * Import ChannelData type from schema definition.
  * This avoids duplication and ensures consistency between schema and type.
  */
-export { Channel } from '../schemas/channel';
+export { ChannelData } from '../schemas/channel';
 
 /**
  * Channel Summary Statistics.

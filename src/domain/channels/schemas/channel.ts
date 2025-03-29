@@ -55,6 +55,6 @@ export type RawChannel = z.infer<typeof RawChannelSchema>;
 export type ChannelParams = z.infer<typeof ChannelParamsSchema>;
 
 /**
- * Type for channel entity
+ * Type for channel data structure
  */
-export type Channel = z.infer<typeof ChannelSchema>;
+export type ChannelData = z.infer<typeof ChannelSchema>;
