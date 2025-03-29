@@ -44,7 +44,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pblittle/lnd-mcp-server.git"
+    "url": "git+https://github.com/pblittle/lightning-mcp-server.git"
   },
   "author": "P. Barrett Little",
   "license": "Apache-2.0",

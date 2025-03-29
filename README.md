@@ -31,8 +31,8 @@ Lightning Network MCP Server connects your Lightning Network node to LLM applica
 
 ```bash
 # Install
-git clone https://github.com/pblittle/lnd-mcp-server.git
-cd lnd-mcp-server
+git clone https://github.com/pblittle/lightning-mcp-server.git
+cd lightning-mcp-server
 npm install
 npm run build
 ```

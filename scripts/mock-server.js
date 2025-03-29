@@ -187,7 +187,7 @@ class SimpleMcpServer {
               result: {
                 protocolVersion: request.params.protocolVersion || '2024-11-05',
                 serverInfo: {
-                  name: 'lnd-mcp-server-mock',
+                  name: 'lightning-mcp-server-mock',
                   version: '1.0.0',
                 },
                 capabilities: {

@@ -1,14 +1,14 @@
 # Contribution Guide
 
-Thanks for your interest in improving the LND MCP Server! This guide will help you get started quickly.
+Thanks for your interest in improving the Lightning Network MCP Server! This guide will help you get started quickly.
 
 ## Quick Start
 
 1. **Fork and clone the repo**
 
    ```bash
-   git clone https://github.com/your-username/lnd-mcp-server.git
-   cd lnd-mcp-server
+   git clone https://github.com/your-username/lightning-mcp-server.git
+   cd lightning-mcp-server
    ```
 
 2. **Install dependencies**
