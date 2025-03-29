@@ -8,24 +8,55 @@ An MCP server that connects to your Lightning Network node and enables natural l
 
 Lightning Network MCP Server connects your Lightning Network node to LLM applications through the Model Context Protocol. Ask questions in natural language and get human-readable responses alongside structured JSON data.
 
-## Features
+## Features in Action
 
-- **Natural Language Queries:** Query Lightning Network node data using plain English
-- **Multiple Connection Types:**
-  - Direct LND connection via gRPC
-  - Lightning Node Connect (LNC) for secure remote access
-  - Mock mode for development without a real node
-- **Clean, Modular Design:**
-  - Flexible connection options
-  - Easily extensible for new features
-  - Type-safe throughout the codebase
-- **Developer-Friendly:**
-  - Strong data validation with Zod
-  - Comprehensive error handling and logging
-  - Clear separation of concerns
-- **MCP Protocol Integration:**
-  - Compliant responses for LLM integration
-  - Compatible with any MCP-supporting LLM (Claude, Block Goose, etc.)
+**Ask in natural language:**
+
+```bash
+"Show me all my channels"
+```
+
+**Get human-readable responses:**
+
+```bash
+Your node has 5 channels with a total capacity of 0.05000000 BTC (5,000,000 sats).
+4 channels are active and 1 is inactive.
+
+Your channels:
+1. ACINQ: 0.02000000 BTC (2,000,000 sats) (active)
+2. Bitrefill: 0.01000000 BTC (1,000,000 sats) (active)
+3. LightningTipBot: 0.00800000 BTC (800,000 sats) (active)
+4. Wallet of Satoshi: 0.00700000 BTC (700,000 sats) (active)
+5. LN+: 0.00500000 BTC (500,000 sats) (inactive)
+```
+
+**Plus structured JSON data for applications:**
+
+```json
+{
+  "channels": [
+    {
+      "capacity": 2000000,
+      "local_balance": 1000000,
+      "remote_balance": 1000000,
+      "active": true,
+      "remote_alias": "ACINQ"
+    }
+  ],
+  "summary": {
+    "totalCapacity": 5000000,
+    "activeChannels": 4,
+    "inactiveChannels": 1
+  }
+}
+```
+
+### Key Features
+
+- **Natural Language Queries:** Ask about your Lightning Network in plain English
+- **Multiple Connection Types:** Direct LND connection, Lightning Node Connect (LNC), or mock mode
+- **Clean Architecture:** Modular design with clear separation of concerns
+- **MCP Protocol Integration:** Compatible with Claude, Block Goose, and other MCP-supporting LLMs
 
 ## Quick Start
 
@@ -90,39 +121,23 @@ Here are some natural language queries you can use:
 
 **Channel listing:**
 
-```
+```bash
 Show me all my channels
 List my active channels
 ```
 
 **Channel health:**
 
-```
+```bash
 What is the health of my channels?
 Do I have any inactive channels?
 ```
 
 **Liquidity distribution:**
 
-```
+```bash
 How is my channel liquidity distributed?
 Which channels are most imbalanced?
-```
-
-## Sample Response
-
-For a channel listing query, you'll get a response like:
-
-```
-Your node has 5 channels with a total capacity of 0.05000000 BTC (5,000,000 sats).
-4 channels are active and 1 is inactive.
-
-Your channels:
-1. ACINQ: 0.02000000 BTC (2,000,000 sats) (active)
-2. Bitrefill: 0.01000000 BTC (1,000,000 sats) (active)
-3. LightningTipBot: 0.00800000 BTC (800,000 sats) (active)
-4. Wallet of Satoshi: 0.00700000 BTC (700,000 sats) (active)
-5. LN+: 0.00500000 BTC (500,000 sats) (inactive)
 ```
 
 ## Testing with Helper Scripts
@@ -147,10 +162,10 @@ The MCP Inspector provides an interactive way to test the server:
 # Install MCP Inspector globally
 npm install -g @modelcontextprotocol/inspector
 
-# Run the server (in a separate terminal)
+# Run the mock MCP server
 npm run mcp:mock
 
-# Launch MCP Inspector
+# Launch MCP Inspector (in a separate terminal)
 npx @modelcontextprotocol/inspector
 ```
 
