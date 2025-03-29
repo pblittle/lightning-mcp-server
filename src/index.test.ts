@@ -86,7 +86,6 @@ describe('Application Entry Point', () => {
     } as unknown as jest.Mocked<McpServer>;
 
     // Set up mock implementations
-    (McpServer as jest.Mock).mockImplementation(() => mockServer);
     (createMcpServer as jest.Mock).mockResolvedValue(mockServer);
   });
 

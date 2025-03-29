@@ -1,8 +1,15 @@
+/**
+ * @fileoverview Application composition root.
+ *
+ * Creates and wires up all dependencies for the application
+ * using dependency injection patterns for loose coupling.
+ * This module implements the Composition Root pattern to centralize
+ * dependency creation and wiring.
+ */
+
 import { Config } from './core/config';
-import { LndClient } from './infrastructure/lnd/LndClient';
-import { LndChannelRepository } from './infrastructure/lnd/LndChannelRepository';
-import { ChannelService } from './domain/channels/services/ChannelService';
 import { McpServer } from './interfaces/mcp/McpServer';
+import logger from './core/logging/logger';
 
 /**
  * Creates and wires up all dependencies for the application
@@ -10,16 +17,12 @@ import { McpServer } from './interfaces/mcp/McpServer';
  * @returns Initialized MCP server
  */
 export async function createMcpServer(config: Config): Promise<McpServer> {
-  // Create LND client
-  const lndClient = new LndClient(config);
+  logger.info(`Creating MCP server (connection type: ${config.node.connectionType})`);
 
-  // Create repositories
-  const channelRepository = new LndChannelRepository(lndClient);
+  // Create the MCP server using the factory method
+  const mcpServer = await McpServer.createFromConfig(config);
 
-  // Create domain services
-  const channelService = new ChannelService(channelRepository);
-  // Create and start the MCP server using updated constructor parameters
-  const mcpServer = new McpServer(lndClient, channelService, config);
+  // Start the server
   await mcpServer.start();
 
   return mcpServer;

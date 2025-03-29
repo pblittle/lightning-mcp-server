@@ -3,8 +3,8 @@
  *
  * Bootstraps the application by:
  * 1. Loading configuration
- * 2. Creating the LND client
- * 3. Creating and starting the MCP server
+ * 2. Creating the Lightning Network connection (LND or LNC)
+ * 3. Creating and starting the enhanced MCP server
  * 4. Setting up graceful shutdown handling
  */
 
@@ -31,7 +31,7 @@ let mcpServer: Awaited<ReturnType<typeof createMcpServer>> | null = null;
  */
 export async function bootstrap() {
   try {
-    logger.info('Starting LND MCP server');
+    logger.info('Starting Lightning Network MCP server');
 
     // Load configuration
     const config = getConfig();
@@ -39,7 +39,7 @@ export async function bootstrap() {
     // Create and start the MCP server using the composition module
     mcpServer = await createMcpServer(config);
 
-    logger.info('LND MCP server started');
+    logger.info('Lightning Network MCP server started');
   } catch (error) {
     const sanitizedError = sanitizeError(error);
     logger.error(`Failed to start application: ${sanitizedError.message}`, sanitizedError);
