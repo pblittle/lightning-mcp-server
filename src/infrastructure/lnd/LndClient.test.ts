@@ -4,8 +4,9 @@
  */
 
 import * as lnService from 'ln-service';
-import { LndClient } from './LndClient';
+import { LndClient } from '../lnd/LndClient';
 import { Config } from '../../core/config';
+import { LndAuth } from '../../domain/node/ConnectionAuth';
 import logger from '../../core/logging/logger';
 
 // Mock dependencies
@@ -18,21 +19,32 @@ jest.mock('../../core/errors/sanitize', () => ({
 
 describe('LndClient', () => {
   let mockConfig: Config;
+  let mockAuth: LndAuth;
 
   beforeEach(() => {
     mockConfig = {
-      lnd: {
-        tlsCertPath: '/path/to/tls.cert',
-        macaroonPath: '/path/to/macaroon',
-        host: 'localhost',
-        port: '10009',
-        useMockLnd: false,
+      node: {
+        connectionType: 'lnd-direct',
+        lnd: {
+          tlsCertPath: '/path/to/tls.cert',
+          macaroonPath: '/path/to/macaroon',
+          host: 'localhost',
+          port: '10009',
+        },
       },
       server: {
         port: 3000,
         logLevel: 'info',
         environment: 'test',
       },
+    };
+
+    mockAuth = {
+      type: 'lnd-direct',
+      tlsCertPath: mockConfig.node.lnd.tlsCertPath,
+      macaroonPath: mockConfig.node.lnd.macaroonPath,
+      host: mockConfig.node.lnd.host,
+      port: mockConfig.node.lnd.port,
     };
 
     // Reset all mocks before each test
@@ -52,7 +64,7 @@ describe('LndClient', () => {
   describe('constructor', () => {
     test('should initialize with config and log connection details', () => {
       // Act
-      new LndClient(mockConfig);
+      new LndClient(mockAuth);
 
       // Assert - Check if logged with expected message and any object
       expect(logger.info).toHaveBeenCalledWith(
@@ -65,7 +77,7 @@ describe('LndClient', () => {
   describe('createLndConnection', () => {
     test('should authenticate with LND using config values', () => {
       // Arrange
-      const client = new LndClient(mockConfig);
+      const client = new LndClient(mockAuth);
 
       // Act - call private method through any cast
       const createConnection = (client as any).createLndConnection.bind(client);
@@ -81,7 +93,7 @@ describe('LndClient', () => {
 
     test('should throw error on authentication failure', () => {
       // Arrange
-      const client = new LndClient(mockConfig);
+      const client = new LndClient(mockAuth);
       (lnService.authenticatedLndGrpc as jest.Mock).mockImplementationOnce(() => {
         throw new Error('Authentication failed');
       });
@@ -90,7 +102,7 @@ describe('LndClient', () => {
       const createConnection = (client as any).createLndConnection.bind(client);
 
       // Assert
-      expect(() => createConnection()).toThrow(/LND connection error/);
+      expect(() => createConnection()).toThrow(/Authentication|authentication/);
       expect(logger.error).toHaveBeenCalled();
     });
   });
@@ -98,7 +110,7 @@ describe('LndClient', () => {
   describe('getLnd', () => {
     test('should create connection if not already created', () => {
       // Arrange
-      const client = new LndClient(mockConfig);
+      const client = new LndClient(mockAuth);
       const createConnectionSpy = jest.spyOn(client as any, 'createLndConnection');
 
       // Act
@@ -110,7 +122,7 @@ describe('LndClient', () => {
 
     test('should reuse existing connection if available', () => {
       // Arrange
-      const client = new LndClient(mockConfig);
+      const client = new LndClient(mockAuth);
       const createConnectionSpy = jest.spyOn(client as any, 'createLndConnection');
 
       // Act - call twice
@@ -125,7 +137,7 @@ describe('LndClient', () => {
   describe('checkConnection', () => {
     test('should resolve to true if connection is successful', async () => {
       // Arrange
-      const client = new LndClient(mockConfig);
+      const client = new LndClient(mockAuth);
 
       // Act
       const result = await client.checkConnection();
@@ -146,7 +158,7 @@ describe('LndClient', () => {
 
     test('should throw an error if connection check fails', async () => {
       // Arrange
-      const client = new LndClient(mockConfig);
+      const client = new LndClient(mockAuth);
 
       // Mock getWalletInfo to throw an error
       (lnService.getWalletInfo as jest.Mock).mockRejectedValueOnce(new Error('Connection failed'));
@@ -160,7 +172,7 @@ describe('LndClient', () => {
   describe('close', () => {
     test('should log a message when closing the connection', () => {
       // Arrange
-      const client = new LndClient(mockConfig);
+      const client = new LndClient(mockAuth);
       client.getLnd(); // Create connection first
 
       // Act
@@ -172,7 +184,7 @@ describe('LndClient', () => {
 
     test('should handle errors gracefully', () => {
       // Arrange
-      const client = new LndClient(mockConfig);
+      const client = new LndClient(mockAuth);
 
       // Mock logger.info to throw an error to test error handling
       (logger.info as jest.Mock).mockImplementationOnce(() => {

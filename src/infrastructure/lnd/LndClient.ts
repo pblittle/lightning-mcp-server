@@ -1,114 +1,111 @@
+/**
+ * @fileoverview LND client for Lightning Network daemon connection.
+ *
+ * This module provides a client for interacting with an LND node directly
+ * using ln-service. It handles connection creation, authentication, and
+ * mapping of LND-specific data to domain models.
+ */
+
 import * as lnService from 'ln-service';
-import { Config } from '../../core/config';
+import { LndAuth } from '../../domain/node/ConnectionAuth';
+import { NodeInfo } from '../../domain/node/NodeInfo';
 import logger from '../../core/logging/logger';
 import { sanitizeError } from '../../core/errors/sanitize';
-
-/**
- * Interface for LND authentication parameters
- */
-export interface LndAuthentication {
-  cert: string;
-  macaroon: string;
-  socket: string;
-}
+import {
+  ConnectionError,
+  AuthenticationError,
+  CredentialError,
+} from '../../domain/errors/ConnectionErrors';
 
 /**
  * Client for communicating with a Lightning Network Daemon
  */
 export class LndClient {
-  private config: Config;
+  private readonly auth: LndAuth;
   private lndConnection: lnService.AuthenticatedLnd | null = null;
 
   /**
-   * Creates a new LND client with the given configuration
-   * @param config The application configuration containing LND connection details
+   * Creates a new LND client
+   * @param auth LND authentication parameters
    */
-  constructor(config: Config) {
-    this.config = config;
-    logger.info('Creating LND connection to ' + config.lnd.host + ':' + config.lnd.port, {
+  constructor(auth: LndAuth) {
+    this.auth = auth;
+    logger.info(`Creating LND connection to ${auth.host}:${auth.port}`, {
       component: 'lnd-client',
-      host: config.lnd.host,
-      port: config.lnd.port,
+      host: auth.host,
+      port: auth.port,
     });
   }
 
   /**
-   * Factory method to create a new LND client with the given configuration
-   * @param config The application configuration containing LND connection details
-   * @returns A new LndClient instance
+   * Gets the LND connection, creating one if it doesn't exist
+   * @returns Authenticated LND connection
    */
-  static create(config: Config): LndClient {
-    logger.debug('Creating new LND client', {
-      component: 'lnd-client',
-      host: config.lnd.host,
-      port: config.lnd.port,
-    });
+  getConnection(): lnService.AuthenticatedLnd {
+    if (!this.lndConnection) {
+      this.lndConnection = this.createLndConnection();
+    }
+    return this.lndConnection;
+  }
 
-    return new LndClient(config);
+  /**
+   * Alias for getConnection to maintain compatibility with existing code
+   * @returns Authenticated LND connection
+   */
+  getLnd(): lnService.AuthenticatedLnd {
+    return this.getConnection();
   }
 
   /**
    * Creates an authenticated connection to the LND node
+   * @returns Authenticated LND connection
+   * @private
    */
   private createLndConnection(): lnService.AuthenticatedLnd {
     try {
       logger.debug('Creating LND connection', {
         component: 'lnd-client',
         operation: 'createLndConnection',
-        host: this.config.lnd.host,
-        port: this.config.lnd.port,
       });
 
-      const authParams: LndAuthentication = {
-        cert: this.config.lnd.tlsCertPath,
-        macaroon: this.config.lnd.macaroonPath,
-        socket: `${this.config.lnd.host}:${this.config.lnd.port}`,
-      };
-
-      return lnService.authenticatedLndGrpc(authParams);
+      return lnService.authenticatedLndGrpc({
+        cert: this.auth.tlsCertPath,
+        macaroon: this.auth.macaroonPath,
+        socket: `${this.auth.host}:${this.auth.port}`,
+      });
     } catch (error) {
       const sanitizedError = sanitizeError(error);
-
-      logger.error(
-        'Failed to create LND connection',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          component: 'lnd-client',
-          operation: 'createLndConnection',
-          host: this.config.lnd.host,
-          port: this.config.lnd.port,
-        }
-      );
-
-      throw new Error(`LND connection error: ${sanitizedError.message}`);
-    }
-  }
-
-  /**
-   * Gets the LND connection, creating one if it doesn't exist
-   */
-  getLnd(): lnService.AuthenticatedLnd {
-    if (!this.lndConnection) {
-      logger.debug('Initializing LND connection', {
+      logger.error('Failed to create LND connection', sanitizedError, {
         component: 'lnd-client',
-        operation: 'getLnd',
+        operation: 'createLndConnection',
       });
-
-      this.lndConnection = this.createLndConnection();
+      const errorMessage = sanitizedError.message.toLowerCase();
+      // Map different error types to appropriate domain-specific errors
+      if (errorMessage.includes('certificate') || errorMessage.includes('cert')) {
+        throw new CredentialError(`LND certificate error: ${sanitizedError.message}`);
+      } else if (
+        errorMessage.includes('macaroon') ||
+        errorMessage.includes('permission') ||
+        errorMessage.includes('unauthorized') ||
+        errorMessage.includes('authentication')
+      ) {
+        throw new AuthenticationError(`LND authentication error: ${sanitizedError.message}`);
+      } else {
+        throw new ConnectionError(`LND connection error: ${sanitizedError.message}`);
+      }
     }
-
-    return this.lndConnection;
   }
 
   /**
    * Checks if the LND connection is working
+   * @returns Promise that resolves to true if connection is successful
+   * @throws ConnectionError if connection check fails
    */
   async checkConnection(): Promise<boolean> {
     try {
       const lnd = this.getLnd();
       const walletInfo = await lnService.getWalletInfo({ lnd });
 
-      // Call logger.info with both message and metadata to match test expectations
       logger.info('LND connection successful', {
         component: 'lnd-client',
         operation: 'checkConnection',
@@ -119,19 +116,50 @@ export class LndClient {
       return true;
     } catch (error) {
       const sanitizedError = sanitizeError(error);
+      logger.error('LND connection check failed', sanitizedError, {
+        component: 'lnd-client',
+        operation: 'checkConnection',
+      });
+      const errorMessage = sanitizedError.message.toLowerCase();
+      // Map different error types to appropriate domain-specific errors
+      if (
+        errorMessage.includes('authentication') ||
+        errorMessage.includes('macaroon') ||
+        errorMessage.includes('permission') ||
+        errorMessage.includes('unauthorized')
+      ) {
+        throw new AuthenticationError(`LND authentication failed: ${sanitizedError.message}`);
+      } else {
+        throw new ConnectionError(`LND connection check failed: ${sanitizedError.message}`);
+      }
+    }
+  }
 
-      logger.error(
-        'LND connection check failed',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          component: 'lnd-client',
-          operation: 'checkConnection',
-          host: this.config.lnd.host,
-          port: this.config.lnd.port,
-        }
-      );
+  /**
+   * Gets information about the connected node
+   * @returns Promise resolving to node information
+   * @throws ConnectionError if fetching node info fails
+   */
+  async getNodeInfo(): Promise<NodeInfo> {
+    try {
+      const lnd = this.getLnd();
+      const info = await lnService.getWalletInfo({ lnd });
 
-      throw new Error(`LND connection check failed: ${sanitizedError.message}`);
+      return {
+        alias: info.alias,
+        pubkey: info.public_key, // Ensure we map public_key to pubkey
+        color: info.color,
+        activeChannelsCount: info.active_channels_count,
+        pendingChannelsCount: info.pending_channels_count,
+        peersCount: info.peers_count,
+      };
+    } catch (error) {
+      const sanitizedError = sanitizeError(error);
+      logger.error('Failed to get node info', sanitizedError, {
+        component: 'lnd-client',
+        operation: 'getNodeInfo',
+      });
+      throw new ConnectionError(`Failed to get node info: ${sanitizedError.message}`);
     }
   }
 
@@ -140,27 +168,15 @@ export class LndClient {
    */
   close(): void {
     try {
-      // Clear the LND connection
       this.lndConnection = null;
-
-      // Log with the exact message the test expects
       logger.info('LND connection closed');
-
-      // Add more detailed log with structured metadata
-      logger.debug('LND connection resources released', {
+    } catch (error) {
+      const sanitizedError = sanitizeError(error);
+      logger.error('Error closing LND connection', {
         component: 'lnd-client',
         operation: 'close',
+        error: sanitizedError.message,
       });
-    } catch (error) {
-      // Log the error but don't throw it to match test expectations
-      logger.error(
-        'Error closing LND connection',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          component: 'lnd-client',
-          operation: 'close',
-        }
-      );
     }
   }
 }
