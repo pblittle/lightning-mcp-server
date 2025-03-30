@@ -43,9 +43,9 @@ describe('Configuration', () => {
   });
 
   describe('getConfig', () => {
-    test('returns correct configuration with mock LND', () => {
+    test('returns correct configuration with mock mode', () => {
       // Arrange
-      process.env.USE_MOCK_LND = 'true';
+      process.env.CONNECTION_TYPE = 'mock';
 
       // Act
       const config = getConfig();
@@ -70,9 +70,8 @@ describe('Configuration', () => {
       expect(logger.info).toHaveBeenCalled();
     });
 
-    test('returns correct configuration with real LND', () => {
+    test('returns correct configuration with lnd-direct mode', () => {
       // Arrange
-      process.env.USE_MOCK_LND = 'false';
       process.env.CONNECTION_TYPE = 'lnd-direct';
       process.env.LND_TLS_CERT_PATH = '/path/to/tls.cert';
       process.env.LND_MACAROON_PATH = '/path/to/macaroon';
@@ -103,7 +102,6 @@ describe('Configuration', () => {
 
     test('throws error if TLS certificate file does not exist', () => {
       // Arrange
-      process.env.USE_MOCK_LND = 'false';
       process.env.CONNECTION_TYPE = 'lnd-direct';
       process.env.LND_TLS_CERT_PATH = '/path/to/tls.cert';
       process.env.LND_MACAROON_PATH = '/path/to/macaroon';
@@ -123,7 +121,6 @@ describe('Configuration', () => {
 
     test('throws error if macaroon file does not exist', () => {
       // Arrange
-      process.env.USE_MOCK_LND = 'false';
       process.env.CONNECTION_TYPE = 'lnd-direct';
       process.env.LND_TLS_CERT_PATH = '/path/to/tls.cert';
       process.env.LND_MACAROON_PATH = '/path/to/macaroon';
@@ -143,7 +140,7 @@ describe('Configuration', () => {
 
     test('creates mock files when in mock mode', () => {
       // Arrange
-      process.env.USE_MOCK_LND = 'true';
+      process.env.CONNECTION_TYPE = 'mock';
 
       // Mock existsSync to return false for mock files
       (fs.existsSync as jest.Mock).mockImplementation((p) => {
@@ -164,7 +161,7 @@ describe('Configuration', () => {
 
     test('validates port numbers', () => {
       // Arrange
-      process.env.USE_MOCK_LND = 'true';
+      process.env.CONNECTION_TYPE = 'mock';
       process.env.PORT = 'invalid';
 
       // Act & Assert
@@ -173,7 +170,7 @@ describe('Configuration', () => {
 
     test('validates LND port number', () => {
       // Arrange
-      process.env.USE_MOCK_LND = 'true';
+      process.env.CONNECTION_TYPE = 'mock';
       process.env.LND_PORT = 'invalid';
 
       // Act & Assert

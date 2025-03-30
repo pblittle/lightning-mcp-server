@@ -59,11 +59,11 @@ export interface Config {
 }
 
 /**
- * Sets up mock LND environment if mock mode is enabled
+ * Sets up mock LND environment when using mock connection type
  * Creates necessary certificate and macaroon files for testing
  */
-function setupMockLndIfNeeded(): void {
-  if (process.env.USE_MOCK_LND === 'true') {
+function setupMockInfrastructure(connectionType: string): void {
+  if (connectionType === 'mock') {
     // Define paths for mock files
     const mockDir = path.resolve(process.cwd(), 'mock');
     const mockCertPath = path.resolve(mockDir, 'mock-cert.pem');
@@ -97,9 +97,9 @@ function setupMockLndIfNeeded(): void {
 /**
  * Validate required configuration values
  */
-function validateConfig(): void {
-  // When not in mock mode and using direct LND connection, check if required files exist
-  if (process.env.USE_MOCK_LND !== 'true' && process.env.CONNECTION_TYPE === 'lnd-direct') {
+function validateConfig(connectionType: string): void {
+  // When using direct LND connection, check if required files exist
+  if (connectionType === 'lnd-direct') {
     const tlsCertPath = process.env.LND_TLS_CERT_PATH;
     const macaroonPath = process.env.LND_MACAROON_PATH;
 
@@ -142,16 +142,14 @@ function validateConfig(): void {
  */
 export function getConfig(): Config {
   try {
-    // Setup mock LND environment if needed
-    setupMockLndIfNeeded();
+    // Determine connection type from environment or default to mock
+    const connectionType = (process.env.CONNECTION_TYPE as 'lnd-direct' | 'lnc' | 'mock') || 'mock';
+
+    // Setup mock infrastructure if needed
+    setupMockInfrastructure(connectionType);
 
     // Validate configuration
-    validateConfig();
-
-    // Determine connection type from environment or default to lnd-direct
-    const connectionType =
-      (process.env.CONNECTION_TYPE as 'lnd-direct' | 'lnc' | 'mock') ||
-      (process.env.USE_MOCK_LND === 'true' ? 'mock' : 'lnd-direct');
+    validateConfig(connectionType);
 
     // Create configuration object
     const config: Config = {
