@@ -1,24 +1,26 @@
 # Lightning Network MCP Server
 
-An MCP server that connects to your Lightning Network node and enables natural language queries for channel information. Supports both direct LND connections and Lightning Node Connect (LNC) for secure remote access.
+The Lightning Network MCP Server allows large language model (LLM) agents—such as those running in [Goose](https://block.github.io/goose/)—to query Lightning node data using natural language. It serves as a structured backend for LLM agents by implementing the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
 
-> **Note:** The current version focuses on channel data. Additional Lightning Network data types will be added in future releases.
+The server connects to your node using gRPC or Lightning Node Connect (LNC), and returns both readable summaries and machine-readable JSON output. It is designed to be modular, testable, and extensible to support additional node types such as Core Lightning and Eclair.
 
-## What is it?
+For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
-Lightning Network MCP Server connects your Lightning Network node to LLM applications through the Model Context Protocol. Ask questions in natural language and get human-readable responses alongside structured JSON data.
+## What It Does
 
-## Features in Action
+The system interprets natural-language prompts, determines user intent, evaluates domain logic, and queries your Lightning node. Responses are returned in plain language and structured JSON. It currently supports basic channel queries and is actively evolving to cover broader node status, invoices, and routing data.
 
-**Ask in natural language:**
+## Example Query
 
-```bash
-"Show me all my channels"
+Ask in natural language:
+
+```
+Show me my channels
 ```
 
-**Get human-readable responses:**
+Get human-readable responses:
 
-```bash
+```
 Your node has 5 channels with a total capacity of 0.05000000 BTC (5,000,000 sats).
 4 channels are active and 1 is inactive.
 
@@ -30,159 +32,94 @@ Your channels:
 5. LN+: 0.00500000 BTC (500,000 sats) (inactive)
 ```
 
-**Plus structured JSON data for applications:**
+Plus structured JSON data for applications:
 
 ```json
 {
   "channels": [
     {
+      "remote_alias": "ACINQ",
       "capacity": 2000000,
-      "local_balance": 1000000,
-      "remote_balance": 1000000,
-      "active": true,
-      "remote_alias": "ACINQ"
-    }
+      "local_balance": 800000,
+      "active": true
+    },
+    ...
   ],
   "summary": {
-    "totalCapacity": 5000000,
-    "activeChannels": 4,
-    "inactiveChannels": 1
+    "total_capacity": 5000000,
+    "active_channels": 4,
+    "inactive_channels": 1,
+    "largest_channel_alias": "ACINQ",
+    "average_local_balance": 750000
   }
 }
 ```
 
-### Key Features
+_The JSON output provides a structured version of the same data and is optimized for use by LLM agents, UI layers, or downstream applications._
 
-- **Natural Language Queries:** Ask about your Lightning Network in plain English
-- **Multiple Connection Types:** Direct LND connection, Lightning Node Connect (LNC), or mock mode
-- **Clean Architecture:** Modular design with clear separation of concerns
-- **MCP Protocol Integration:** Compatible with Claude, Block Goose, and other MCP-supporting LLMs
+## Supported Features
+
+Today, the system supports basic channel queries:
+
+- _“Show me my channels”_
+
+More robust queries are in development across the following domains:
+
+- **Channels**  
+  _“What is the health of my channels?”_  
+  _“Do I have any inactive channels?”_
+
+- **Invoices**  
+  _“How many invoices have I received this week?”_  
+  _“What was my last payment?”_
+
+- **Nodes**  
+  _“What node am I connected to the most?”_  
+  _“What node did I last forward a payment to?”_
+
+- **Routing**  
+  _“How much have I routed in the last 24 hours?”_  
+  _“Which channels are doing most of the routing?”_
 
 ## Quick Start
 
+### Run with Mock Data (No Node Required)
+
 ```bash
-# Install
-git clone https://github.com/pblittle/lightning-mcp-server.git
-cd lightning-mcp-server
 npm install
 npm run build
-```
-
-### Run with Mock Data (No LND Node Required)
-
-The mock mode is the default connection type, making it easy to get started without a real Lightning node:
-
-```bash
-# Run with mock data - no configuration needed
 npm run mcp:mock
 ```
 
-Alternatively, you can explicitly set the connection type in your .env file:
-
-```shell
-CONNECTION_TYPE=mock
-```
-
-### Run with Direct LND Connection
-
-To connect directly to an LND node:
+### Run with a Real Node (LND via gRPC or LNC)
 
 ```bash
-# Copy the example configuration
 cp .env.example .env
-
-# Edit .env with your LND node details
-# Required settings (mock is the default if not specified):
-# CONNECTION_TYPE=lnd-direct
-# LND_TLS_CERT_PATH=/path/to/your/tls.cert
-# LND_MACAROON_PATH=/path/to/your/readonly.macaroon
-# LND_HOST=localhost
-# LND_PORT=10009
-
-# Run the server with LND connection
+# Configure .env with your LND credentials
 npm run mcp:prod
 ```
 
-### Run with Lightning Node Connect (LNC)
+## Test with MCP Inspector
 
-To connect remotely using Lightning Node Connect:
-
-```bash
-# Copy the example configuration
-cp .env.example .env
-
-# Edit .env with your LNC details
-# Required settings:
-# CONNECTION_TYPE=lnc
-# LNC_CONNECTION_STRING=your-connection-string
-# LNC_PAIRING_PHRASE=optional-pairing-phrase
-
-# Run the server with LNC connection
-npm run mcp:prod
-```
-
-## Example Queries
-
-Here are some natural language queries you can use:
-
-**Channel listing:**
+To test the server using the official MCP inspector:
 
 ```bash
-Show me all my channels
-List my active channels
-```
-
-**Channel health:**
-
-```bash
-What is the health of my channels?
-Do I have any inactive channels?
-```
-
-**Liquidity distribution:**
-
-```bash
-How is my channel liquidity distributed?
-Which channels are most imbalanced?
-```
-
-## Testing with Helper Scripts
-
-You can test the server with the included scripts. Make sure to have the mock server running first:
-
-```bash
-# Start the mock server in one terminal
-npm run mcp:mock
-
-# In another terminal, run test queries
-node test/real-queries/list.js    # List all channels
-node test/real-queries/health.js  # Check channel health
-node test/real-queries/liquidity.js  # Check liquidity distribution
-```
-
-## Using with MCP Inspector
-
-The MCP Inspector provides an interactive way to test the server:
-
-```bash
-# Install MCP Inspector globally
 npm install -g @modelcontextprotocol/inspector
-
-# Run the mock MCP server
 npm run mcp:mock
-
-# Launch MCP Inspector (in a separate terminal)
 npx @modelcontextprotocol/inspector
 ```
 
-## Architecture
+## Compatibility
 
-For detailed architectural information, see [ARCHITECTURE.md](ARCHITECTURE.md).
+- MCP agent compatibility (e.g., Goose)
+- gRPC support for direct node access
+- LNC support for secure remote access
+- JSON and natural-language output formats
 
 ## Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and setup instructions.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, style, and testing guidance.
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+Apache License 2.0. See [LICENSE](LICENSE).

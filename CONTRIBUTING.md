@@ -1,240 +1,121 @@
-# Contribution Guide
+# Contributing to the Lightning Network MCP Server
 
-Thanks for your interest in improving the Lightning Network MCP Server! This guide will help you get started with development quickly.
+This project provides natural-language access to Lightning node data through the Model Context Protocol (MCP). It is built with a clean architecture focused on testability, modularity, and clarity. Contributions are welcome.
 
-> **Note:** The current version focuses on channel data. Additional Lightning Network data types will be added in future releases.
+## Development Setup
 
-## Quick Start
-
-1. **Fork and clone the repo**
+1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/lightning-mcp-server.git
+   git clone https://github.com/pblittle/lightning-mcp-server.git
    cd lightning-mcp-server
    ```
 
-2. **Install dependencies**
+2. Install dependencies:
 
    ```bash
    npm install
    ```
 
-3. **Set up for development**
+3. Start the server in mock mode:
 
    ```bash
-   # For development with mock LND (no real node needed)
-   cp .env.development.example .env.development
-   ```
-
-4. **Start coding!**
-
-   ```bash
-   # Run with auto-reload during development
-   npm run dev
-
-   # Or use mock LND mode (recommended for most development)
+   npm run build
    npm run mcp:mock
    ```
 
-## Development Tips
+This runs a local MCP server with mock data and no Lightning node connection.
 
-### Testing Your Changes
+## Running with LND
 
-```bash
-# Run unit tests
-npm test
-
-# Test with mock server
-npm run mcp:mock
-
-# In another terminal, run test queries
-node test/real-queries/list.js
-node test/real-queries/health.js
-node test/real-queries/liquidity.js
-node test/real-queries/query.js "Your custom query here"
-```
-
-### Code Formatting and Linting
-
-We use Prettier and ESLint to keep code consistent:
-
-```bash
-# Format your code
-npm run format
-
-# Check for linting issues
-npm run lint
-
-# Fix linting issues
-npm run lint:fix
-
-# Validate code (lint, format check, and type check)
-npm run validate
-```
-
-This project follows clean architecture principles and domain-driven design. It also adheres to TypeScript best practices based on Google's TypeScript Style Guide.
-
-## Project Structure
-
-The project follows a clean architecture approach with domain-driven design:
-
-```bash
-src/
-├── application/       # Application layer
-│   └── processors/    # Query processors
-├── core/              # Cross-cutting concerns
-│   ├── config/        # Configuration management
-│   ├── errors/        # Error handling
-│   ├── logging/       # Logging utilities
-│   └── validation/    # Validation utilities
-├── domain/            # Domain layer (core business logic)
-│   ├── channels/      # Channel domain
-│   │   ├── entities/  # Channel entities
-│   │   ├── schemas/   # Schema definitions
-│   │   └── value-objects/  # Domain value objects
-│   ├── handlers/      # Domain operation handlers
-│   ├── intents/       # Intent parsing
-│   │   ├── entities/  # Intent models
-│   │   ├── factories/ # Parser factories
-│   │   └── strategies/  # Parsing strategies
-│   ├── lightning/     # Lightning domain
-│   │   └── gateways/  # Gateway interfaces
-│   └── node/          # Node domain
-├── infrastructure/    # Infrastructure layer
-│   ├── factories/     # Infrastructure factories
-│   ├── lnd/           # LND implementation
-│   └── lnc/           # LNC implementation
-└── interfaces/        # Interface layer
-    └── mcp/           # MCP protocol implementation
-```
-
-## Key Architectural Concepts
-
-### Clean Architecture
-
-The codebase is organized into layers:
-
-1. **Domain Layer**: Contains the core business logic, entities, value objects, and gateway interfaces
-2. **Infrastructure Layer**: Implements the gateway interfaces for specific technologies (LND, LNC)
-3. **Application Layer**: Orchestrates the flow between interfaces and domain logic
-4. **Interface Layer**: Handles external communication via the MCP protocol
-
-This layered approach ensures that the core business logic is isolated from implementation details. The current version supports Lightning Network Daemon (LND) as its primary implementation, with LNC (Lightning Node Connect) as a remote connection option. The clean architecture and gateway abstractions are designed to enable support for other Lightning Network implementations like Core Lightning (CLN) and Eclair as the project matures.
-
-For more details on the infrastructure implementations and gateway pattern, see [ARCHITECTURE.md](ARCHITECTURE.md#3-infrastructure-layer).
-
-### Domain-Driven Design
-
-The domain model represents Lightning Network concepts through:
-
-- **Entities**: Core domain objects with identity and lifecycle
-- **Value Objects**: Immutable objects representing domain concepts without identity
-- **Gateway Pattern**: Clean abstraction for accessing external systems
-- **Domain Handlers**: Process domain-specific operations
-
-### Design Patterns
-
-The codebase uses several design patterns:
-
-- **Gateway Pattern**: Abstracts external resources
-- **Strategy Pattern**: Enables swappable implementations for intent parsing
-- **Factory Pattern**: Creates appropriate implementations based on configuration
-- **Value Object Pattern**: Encapsulates domain concepts
-
-## Working with Mock LND
-
-For most development, you can use mock mode instead of connecting to a real Lightning node:
-
-```bash
-# Run with mock data
-npm run mcp:mock
-```
-
-This simulates an LND node with pre-defined channel data, making development much easier.
-
-## Testing with MCP Inspector
-
-The MCP Inspector provides an interactive way to test the server:
-
-```bash
-# Install MCP Inspector globally
-npm install -g @modelcontextprotocol/inspector
-
-# Run the mock MCP server
-npm run mcp:mock
-
-# Launch MCP Inspector (in a separate terminal)
-npx @modelcontextprotocol/inspector
-```
-
-## Testing with a Real LND Node
-
-To test with a real LND node:
-
-1. Create a `.env` file with your LND node details:
+1. Copy the environment file:
 
    ```bash
    cp .env.example .env
-   # Edit .env with your LND node details
    ```
 
-2. Run the server:
+2. Set the connection type:
+
+   - `CONNECTION_TYPE=lnd-direct` for gRPC
+   - `CONNECTION_TYPE=lnc` for Lightning Node Connect
+
+3. Start the server:
 
    ```bash
    npm run mcp:prod
    ```
 
-3. In another terminal, run test queries:
+## MCP Inspector
 
-   ```bash
-   node test/real-queries/query.js "Show me all my channels"
-   ```
+To test natural-language queries, you can use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
 
-## Submitting a Pull Request
+```bash
+npm install -g @modelcontextprotocol/inspector
+npm run mcp:mock
+npx @modelcontextprotocol/inspector
+```
 
-1. Make your changes on a new branch
+## Project Structure
 
-   ```bash
-   git checkout -b your-feature-branch
-   ```
+The codebase is organized by layer:
 
-2. Test your changes
+```
+src/
+├── application/       Application logic and orchestration
+├── core/              Logging, config, validation, and error handling
+├── domain/            Business rules, entities, handlers
+├── infrastructure/    Adapters and gateways (LND, LNC, etc.)
+└── interfaces/        MCP-facing interface (controller, server entry point)
+```
 
-   ```bash
-   npm test
-   npm run lint
-   ```
+For architectural boundaries and design rationale, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-3. Push to your fork and submit a PR
+## Testing
 
-   ```bash
-   git push origin your-feature-branch
-   # Then go to GitHub and create a pull request
-   ```
+This project uses `jest` for automated tests. All business logic should be covered by unit tests, and infrastructure should be tested with mock or real integration queries.
 
-4. We'll review your PR as soon as possible
+To run all tests:
 
-Your PR description should explain what the changes do and why they're needed.
+```bash
+npm test
+```
 
-## Type Safety and Validation
+To run example queries:
 
-The system leverages TypeScript and Zod for robust type safety:
+```bash
+node test/real-queries/list.js
+node test/real-queries/health.js
+```
 
-- **Static Types**: TypeScript provides compile-time checking
-- **Runtime Validation**: Zod schemas validate input/output data
-- **Schema/Type Alignment**: Types are derived from schemas to ensure consistency
+You can test in either mock or live mode depending on your environment setup.
 
-## Future Extensibility
+## Linting and Formatting
 
-The architecture supports several extension points:
+Linting and formatting must pass before submitting a PR:
 
-1. **New Lightning Implementations**: Add new gateway implementations in the infrastructure layer
-2. **Enhanced NLP**: Replace the RegexIntentParser with more sophisticated NLP
-3. **Additional Domain Data**: Expand beyond channels to payments, invoices, etc.
-4. **Advanced Health Metrics**: Enhance health criteria and analysis capabilities
+```bash
+npm run lint
+npm run format
+npm run validate
+```
 
-## Questions?
+## Commit Messages
 
-If you have questions or need help, feel free to open an issue. We're happy to assist.
+We squash commits before merging and apply a consistent message format.
 
-Happy hacking!
+You don’t need to follow a strict convention, but commit messages should be clear and descriptive. Before opening a pull request, squash your commits into a single logical change.
+
+For examples of message style, refer to recent commits in the main branch.
+
+## Contribution Guidelines
+
+- Keep pull requests focused and minimal
+- Include meaningful tests for new functionality
+- Use clear naming and types
+- Follow layering boundaries—do not mix infrastructure and domain logic
+- Avoid unnecessary abstractions
+- Do not introduce new dependencies without discussion
+
+## Questions
+
+Open a pull request or start a discussion. We're happy to support thoughtful contributions.
