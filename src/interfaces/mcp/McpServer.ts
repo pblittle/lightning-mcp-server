@@ -17,6 +17,14 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { LightningNodeConnection } from '../../domain/node/LightningNodeConnection';
 import { Config } from '../../core/config/index';
+import {
+  NodeImplementation,
+  ConnectionMethod,
+  LndGrpcDetails,
+  LndLncDetails,
+  SupportedConnectionDetails,
+} from '../../domain/node/ConnectionAuth';
+import { ConnectionFactory } from '../../infrastructure/factories/ConnectionFactory';
 import logger from '../../core/logging/logger';
 import { sanitizeError } from '../../core/errors/sanitize';
 import { LightningMcpController } from './LightningMcpController';
@@ -102,7 +110,10 @@ export class McpServer {
       const connection = await createConnectionFromConfig(config);
 
       // Create a gateway based on the connection
-      const gateway = LightningNetworkGatewayFactory.create(connection);
+      const gateway = LightningNetworkGatewayFactory.create(
+        connection,
+        NodeImplementation.LND // For now, only LND is supported
+      );
 
       // Create the MCP server
       return new McpServer(connection, gateway, config);
@@ -224,11 +235,33 @@ export class McpServer {
  */
 async function createConnectionFromConfig(config: Config): Promise<LightningNodeConnection> {
   try {
-    // Import the connection factory
-    const { ConnectionFactory } = await import('../../infrastructure/factories/ConnectionFactory');
+    // Create connection details based on connection method
+    let connectionDetails: SupportedConnectionDetails;
 
-    // Create the connection
-    return ConnectionFactory.createFromConfig(config);
+    if (config.node.connectionMethod === ConnectionMethod.GRPC) {
+      connectionDetails = {
+        method: ConnectionMethod.GRPC,
+        host: config.node.lnd.host,
+        port: config.node.lnd.port,
+        tlsCertPath: config.node.lnd.tlsCertPath,
+        macaroonPath: config.node.lnd.macaroonPath,
+      } as LndGrpcDetails;
+    } else if (config.node.connectionMethod === ConnectionMethod.LNC) {
+      if (!config.node.lnc || !config.node.lnc.connectionString) {
+        throw new Error('Missing LNC connection string in configuration');
+      }
+
+      connectionDetails = {
+        method: ConnectionMethod.LNC,
+        connectionString: config.node.lnc.connectionString,
+        pairingPhrase: config.node.lnc.pairingPhrase,
+      } as LndLncDetails;
+    } else {
+      throw new Error(`Unsupported connection method: ${config.node.connectionMethod}`);
+    }
+
+    // Create the connection using the factory
+    return ConnectionFactory.createConnection(config.node.implementation, connectionDetails);
   } catch (error) {
     const sanitizedError = sanitizeError(error);
     logger.error('Failed to create connection from config', {

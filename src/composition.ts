@@ -17,7 +17,9 @@ import logger from './core/logging/logger';
  * @returns Initialized MCP server
  */
 export async function createMcpServer(config: Config): Promise<McpServer> {
-  logger.info(`Creating MCP server (connection type: ${config.node.connectionType})`);
+  logger.info(
+    `Creating MCP server (implementation: ${config.node.implementation}, method: ${config.node.connectionMethod})`
+  );
 
   // Create the MCP server using the factory method
   const mcpServer = await McpServer.createFromConfig(config);
