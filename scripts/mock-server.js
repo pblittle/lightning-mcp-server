@@ -92,7 +92,7 @@ if (!fs.existsSync(MOCK_MACAROON_PATH)) {
 // Set environment variables for testing
 process.env.LND_TLS_CERT_PATH = MOCK_CERT_PATH;
 process.env.LND_MACAROON_PATH = MOCK_MACAROON_PATH;
-process.env.USE_MOCK_LND = 'true';
+process.env.CONNECTION_TYPE = 'mock';
 
 /**
  * Validate JSON string and log detailed error information if invalid

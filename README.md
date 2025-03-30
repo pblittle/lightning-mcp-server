@@ -70,11 +70,17 @@ npm run build
 
 ### Run with Mock Data (No LND Node Required)
 
-For quick testing without an LND node:
+The mock mode is the default connection type, making it easy to get started without a real Lightning node:
 
 ```bash
 # Run with mock data - no configuration needed
 npm run mcp:mock
+```
+
+Alternatively, you can explicitly set the connection type in your .env file:
+
+```shell
+CONNECTION_TYPE=mock
 ```
 
 ### Run with Direct LND Connection
@@ -86,7 +92,7 @@ To connect directly to an LND node:
 cp .env.example .env
 
 # Edit .env with your LND node details
-# Required settings:
+# Required settings (mock is the default if not specified):
 # CONNECTION_TYPE=lnd-direct
 # LND_TLS_CERT_PATH=/path/to/your/tls.cert
 # LND_MACAROON_PATH=/path/to/your/readonly.macaroon
