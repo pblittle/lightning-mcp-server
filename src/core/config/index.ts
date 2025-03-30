@@ -3,6 +3,7 @@ import * as path from 'path';
 import logger from '../logging/logger';
 import { sanitizeErrorMessage, sanitizeConfig } from '../errors/sanitize';
 import { loadEnvironment } from './environment';
+import { NodeImplementation, ConnectionMethod } from '../../domain/node/ConnectionAuth';
 
 // Load environment configuration
 loadEnvironment();
@@ -16,12 +17,18 @@ export interface Config {
    */
   node: {
     /**
-     * Type of connection to use
+     * Type of Lightning node implementation
+     * Currently only LND is supported
      */
-    connectionType: 'lnd-direct' | 'lnc' | 'mock';
+    implementation: NodeImplementation;
 
     /**
-     * LND direct connection configuration
+     * Connection method to use
+     */
+    connectionMethod: ConnectionMethod;
+
+    /**
+     * LND gRPC connection configuration
      */
     lnd: {
       /** Path to the TLS certificate file */
@@ -62,8 +69,9 @@ export interface Config {
  * Sets up mock LND environment when using mock connection type
  * Creates necessary certificate and macaroon files for testing
  */
-function setupMockInfrastructure(connectionType: string): void {
-  if (connectionType === 'mock') {
+function setupMockInfrastructure(): void {
+  // Only set up mock infrastructure when CONNECTION_TYPE is 'mock'
+  if (process.env.CONNECTION_TYPE === 'mock') {
     // Define paths for mock files
     const mockDir = path.resolve(process.cwd(), 'mock');
     const mockCertPath = path.resolve(mockDir, 'mock-cert.pem');
@@ -97,9 +105,12 @@ function setupMockInfrastructure(connectionType: string): void {
 /**
  * Validate required configuration values
  */
-function validateConfig(connectionType: string): void {
-  // When using direct LND connection, check if required files exist
-  if (connectionType === 'lnd-direct') {
+function validateConfig(
+  _implementation: NodeImplementation,
+  connectionMethod: ConnectionMethod
+): void {
+  // When using gRPC connection, check if required files exist
+  if (connectionMethod === ConnectionMethod.GRPC) {
     const tlsCertPath = process.env.LND_TLS_CERT_PATH;
     const macaroonPath = process.env.LND_MACAROON_PATH;
 
@@ -107,17 +118,20 @@ function validateConfig(connectionType: string): void {
       throw new Error('Missing required LND configuration (tlsCertPath or macaroonPath)');
     }
 
-    if (!existsSync(tlsCertPath)) {
-      throw new Error(`TLS certificate file not found at: ${tlsCertPath}`);
-    }
+    // Skip file existence check for mock mode in tests
+    if (process.env.CONNECTION_TYPE !== 'mock' || process.env.NODE_ENV !== 'test') {
+      if (!existsSync(tlsCertPath)) {
+        throw new Error(`TLS certificate file not found at: ${tlsCertPath}`);
+      }
 
-    if (!existsSync(macaroonPath)) {
-      throw new Error(`Macaroon file not found at: ${macaroonPath}`);
+      if (!existsSync(macaroonPath)) {
+        throw new Error(`Macaroon file not found at: ${macaroonPath}`);
+      }
     }
   }
 
   // Validate LNC configuration if using LNC
-  if (process.env.CONNECTION_TYPE === 'lnc') {
+  if (connectionMethod === ConnectionMethod.LNC) {
     if (!process.env.LNC_CONNECTION_STRING) {
       throw new Error('Missing required LNC configuration (connectionString)');
     }
@@ -142,19 +156,34 @@ function validateConfig(connectionType: string): void {
  */
 export function getConfig(): Config {
   try {
-    // Determine connection type from environment or default to mock
-    const connectionType = (process.env.CONNECTION_TYPE as 'lnd-direct' | 'lnc' | 'mock') || 'mock';
+    // Determine connection details from environment
+    const implementation =
+      (process.env.NODE_IMPLEMENTATION as NodeImplementation) || NodeImplementation.LND;
 
-    // Setup mock infrastructure if needed
-    setupMockInfrastructure(connectionType);
+    let connectionMethod: ConnectionMethod;
+    // Map old connection types to new architecture
+    if (process.env.CONNECTION_TYPE === 'lnd-direct') {
+      connectionMethod = ConnectionMethod.GRPC;
+    } else if (process.env.CONNECTION_TYPE === 'lnc') {
+      connectionMethod = ConnectionMethod.LNC;
+    } else if (process.env.CONNECTION_TYPE === 'mock') {
+      // Mock uses GRPC connection method with mock files
+      connectionMethod = ConnectionMethod.GRPC;
+      // Set up mock infrastructure
+      setupMockInfrastructure();
+    } else {
+      // Default to gRPC
+      connectionMethod = ConnectionMethod.GRPC;
+    }
 
     // Validate configuration
-    validateConfig(connectionType);
+    validateConfig(implementation, connectionMethod);
 
     // Create configuration object
     const config: Config = {
       node: {
-        connectionType,
+        implementation,
+        connectionMethod,
         lnd: {
           tlsCertPath: process.env.LND_TLS_CERT_PATH as string,
           macaroonPath: process.env.LND_MACAROON_PATH as string,
@@ -171,7 +200,7 @@ export function getConfig(): Config {
     };
 
     // Add LNC config if needed
-    if (connectionType === 'lnc') {
+    if (connectionMethod === ConnectionMethod.LNC) {
       config.node.lnc = {
         connectionString: process.env.LNC_CONNECTION_STRING as string,
         pairingPhrase: process.env.LNC_PAIRING_PHRASE,

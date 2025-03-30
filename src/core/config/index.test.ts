@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getConfig } from './index';
 import logger from '../logging/logger';
+import { NodeImplementation, ConnectionMethod } from '../../domain/node/ConnectionAuth';
 
 // Mock dependencies
 jest.mock('fs');
@@ -46,6 +47,11 @@ describe('Configuration', () => {
     test('returns correct configuration with mock mode', () => {
       // Arrange
       process.env.CONNECTION_TYPE = 'mock';
+      process.env.NODE_IMPLEMENTATION = NodeImplementation.LND;
+
+      // Mocking is needed for test only, no need to set paths
+      delete process.env.LND_TLS_CERT_PATH;
+      delete process.env.LND_MACAROON_PATH;
 
       // Act
       const config = getConfig();
@@ -53,7 +59,8 @@ describe('Configuration', () => {
       // Assert
       expect(config).toEqual({
         node: {
-          connectionType: 'mock',
+          implementation: NodeImplementation.LND,
+          connectionMethod: ConnectionMethod.GRPC, // Mock defaults to GRPC
           lnd: {
             tlsCertPath: expect.any(String),
             macaroonPath: expect.any(String),
@@ -73,6 +80,7 @@ describe('Configuration', () => {
     test('returns correct configuration with lnd-direct mode', () => {
       // Arrange
       process.env.CONNECTION_TYPE = 'lnd-direct';
+      process.env.NODE_IMPLEMENTATION = NodeImplementation.LND;
       process.env.LND_TLS_CERT_PATH = '/path/to/tls.cert';
       process.env.LND_MACAROON_PATH = '/path/to/macaroon';
       process.env.LND_HOST = 'lnd.example.com';
@@ -84,7 +92,8 @@ describe('Configuration', () => {
       // Assert
       expect(config).toEqual({
         node: {
-          connectionType: 'lnd-direct',
+          implementation: NodeImplementation.LND,
+          connectionMethod: ConnectionMethod.GRPC,
           lnd: {
             tlsCertPath: '/path/to/tls.cert',
             macaroonPath: '/path/to/macaroon',
@@ -141,8 +150,21 @@ describe('Configuration', () => {
     test('creates mock files when in mock mode', () => {
       // Arrange
       process.env.CONNECTION_TYPE = 'mock';
+      process.env.NODE_IMPLEMENTATION = NodeImplementation.LND;
 
-      // Mock existsSync to return false for mock files
+      // Delete env vars to let the function create them
+      delete process.env.LND_TLS_CERT_PATH;
+      delete process.env.LND_MACAROON_PATH;
+
+      // Mock path.resolve to return predictable paths for mock files
+      (path.resolve as jest.Mock).mockImplementation((...args) => {
+        if (args.includes('mock-cert.pem') || args.includes('mock-macaroon')) {
+          return args.join('/');
+        }
+        return args.join('/');
+      });
+
+      // Mock existsSync to return false for mock directory and files
       (fs.existsSync as jest.Mock).mockImplementation((p) => {
         if (typeof p === 'string' && p.includes('mock')) {
           return false;
@@ -162,6 +184,15 @@ describe('Configuration', () => {
     test('validates port numbers', () => {
       // Arrange
       process.env.CONNECTION_TYPE = 'mock';
+      process.env.NODE_IMPLEMENTATION = NodeImplementation.LND;
+
+      // Mock paths need to exist for validation to pass
+      const mockCertPath = '/mock/cert.pem';
+      const mockMacaroonPath = '/mock/macaroon';
+      process.env.LND_TLS_CERT_PATH = mockCertPath;
+      process.env.LND_MACAROON_PATH = mockMacaroonPath;
+
+      // Set invalid port
       process.env.PORT = 'invalid';
 
       // Act & Assert
@@ -171,6 +202,15 @@ describe('Configuration', () => {
     test('validates LND port number', () => {
       // Arrange
       process.env.CONNECTION_TYPE = 'mock';
+      process.env.NODE_IMPLEMENTATION = NodeImplementation.LND;
+
+      // Mock paths need to exist for validation to pass
+      const mockCertPath = '/mock/cert.pem';
+      const mockMacaroonPath = '/mock/macaroon';
+      process.env.LND_TLS_CERT_PATH = mockCertPath;
+      process.env.LND_MACAROON_PATH = mockMacaroonPath;
+
+      // Set invalid LND port
       process.env.LND_PORT = 'invalid';
 
       // Act & Assert
