@@ -9,7 +9,7 @@ The Lightning Network MCP Server follows clean architecture principles with a do
 ### Architectural Layers
 
 1. **Domain Layer**: Contains the core business logic, entities, value objects, and gateway interfaces
-2. **Infrastructure Layer**: Implements the gateway interfaces for specific technologies (LND, LNC)
+2. **Infrastructure Layer**: Implements the gateway interfaces for specific technologies (LND, CLN, Eclair)
 3. **Application Layer**: Orchestrates the flow between interfaces and domain logic
 4. **Interface Layer**: Handles external communication via the MCP protocol
 
@@ -100,22 +100,47 @@ This approach allows for:
 
 The infrastructure layer implements domain interfaces for specific technologies:
 
+### Adapter Pattern
+
+The adapter pattern is used for Lightning node connections:
+
+- `LightningNodeAdapter`: Abstract base adapter implementing `LightningNodeConnection`
+- `LndAdapter`: Concrete adapter for LND nodes with multiple connection methods
+- Future: `ClnAdapter`, `EclairAdapter`: For other Lightning implementations
+
+This pattern allows each adapter to:
+
+- Support multiple connection methods (GRPC, LNC, REST)
+- Handle specific implementation details while presenting a consistent interface
+- Manage authentication and connection lifecycle
+
 ### Gateway Implementations
 
-- `LndGateway`: Implementation for direct LND connections
-- `LncGateway`: Implementation for Lightning Node Connect
+- `LndGateway`: Implementation for LND nodes
+- Future: `ClnGateway`, `EclairGateway`: For other Lightning implementations
 
 Each gateway:
 
 - Implements the `LightningNetworkGateway` interface
-- Translates between domain models and external API data
-- Handles specific connection requirements
+- Translates between domain models and specific node API data
+- Works with any connection that supports its implementation
 
-### Connection Management
+### Connection Management with SOLID Principles
 
-- `LightningNodeConnection`: Abstraction for node connections
-- `ConnectionAuth`: Handles authentication for different connection types
-- `ConnectionFactory`: Creates connections based on configuration
+The connection management follows SOLID principles:
+
+- **Single Responsibility**: Each adapter handles only one node implementation
+- **Open/Closed**: System is open for extension (new implementations) but closed for modification
+- **Liskov Substitution**: All adapters can be used interchangeably as `LightningNodeConnection`
+- **Interface Segregation**: Clean interfaces with focused methods
+- **Dependency Inversion**: High-level modules depend on abstractions, not concrete implementations
+
+Key components:
+
+- `NodeImplementation`: Enum defining supported node implementations (LND, CLN, Eclair)
+- `ConnectionMethod`: Enum defining connection methods (GRPC, LNC)
+- `ConnectionDetails`: Type-safe connection parameters for different methods
+- `ConnectionFactory`: Creates connections based on node implementation and connection details
 
 ## 4. Application Layer
 
@@ -143,7 +168,8 @@ sequenceDiagram
     participant Parser as Intent Parser
     participant Handler as Domain Handler
     participant Gateway as Lightning Gateway
-    participant Node as LND/LNC Node
+    participant Adapter as Node Adapter
+    participant Node as Lightning Node
 
     User->>MCP: Natural language query
     MCP->>Processor: Process query
@@ -151,8 +177,10 @@ sequenceDiagram
     Parser-->>Processor: Enhanced intent
     Processor->>Handler: Handle intent
     Handler->>Gateway: Request data
-    Gateway->>Node: Query node
-    Node-->>Gateway: Raw node data
+    Gateway->>Adapter: Call node methods
+    Adapter->>Node: Query node (GRPC/LNC)
+    Node-->>Adapter: Raw node data
+    Adapter-->>Gateway: Normalized data
     Gateway-->>Handler: Domain objects
     Handler-->>Processor: Domain result
     Processor-->>MCP: Formatted response
@@ -165,6 +193,10 @@ sequenceDiagram
 
 The Gateway pattern provides a clean abstraction for external resources, allowing the domain layer to remain free of implementation details.
 
+### Adapter Pattern
+
+The Adapter pattern provides a consistent interface to different Lightning implementations and connection methods, following SOLID principles.
+
 ### Strategy Pattern
 
 The Strategy pattern enables swappable implementations for intent parsing, making it easy to enhance or replace parsing logic.
@@ -173,7 +205,7 @@ The Strategy pattern enables swappable implementations for intent parsing, makin
 
 Factories create appropriate implementations based on configuration:
 
-- `ConnectionFactory`: Creates the right connection type
+- `ConnectionFactory`: Creates the right adapter based on node implementation
 - `LightningNetworkGatewayFactory`: Creates the corresponding gateway
 - `IntentParserFactory`: Creates the appropriate parser
 
@@ -211,50 +243,50 @@ The project structure mirrors the architectural layers:
 
 ```
 src/
-├── domain/            # Domain layer
-│   ├── channels/      # Channel domain
-│   │   ├── entities/  # Channel entities
-│   │   ├── schemas/   # Schema definitions
-│   │   └── value-objects/  # Domain value objects
-│   ├── handlers/      # Domain operation handlers
-│   ├── intents/       # Intent parsing
-│   │   ├── entities/  # Intent models
-│   │   ├── factories/ # Parser factories
-│   │   └── strategies/  # Parsing strategies
-│   ├── lightning/     # Lightning domain
-│   │   └── gateways/  # Gateway interfaces
-│   └── node/          # Node domain
-├── infrastructure/    # Infrastructure layer
-│   ├── factories/     # Infrastructure factories
-│   ├── lnd/           # LND implementation
-│   └── lnc/           # LNC implementation
-├── application/       # Application layer
-│   └── processors/    # Query processors
-├── interfaces/        # Interface layer
-│   └── mcp/           # MCP protocol implementation
-└── core/              # Cross-cutting concerns
-    ├── config/        # Configuration management
-    ├── errors/        # Error handling
-    ├── logging/       # Logging utilities
-    └── validation/    # Validation utilities
+├── domain/                # Domain layer
+│   ├── channels/          # Channel domain
+│   │   ├── entities/      # Channel entities
+│   │   ├── schemas/       # Schema definitions
+│   │   └── value-objects/ # Domain value objects
+│   ├── handlers/          # Domain operation handlers
+│   ├── intents/           # Intent parsing
+│   │   ├── entities/      # Intent models
+│   │   ├── factories/     # Parser factories
+│   │   └── strategies/    # Parsing strategies
+│   ├── lightning/         # Lightning domain
+│   │   └── gateways/      # Gateway interfaces
+│   └── node/              # Node domain
+├── infrastructure/        # Infrastructure layer
+│   ├── adapters/          # Connection adapters
+│   ├── factories/         # Infrastructure factories
+│   └── lnd/               # LND implementation
+├── application/           # Application layer
+│   └── processors/        # Query processors
+├── interfaces/            # Interface layer
+│   └── mcp/               # MCP protocol implementation
+└── core/                  # Cross-cutting concerns
+    ├── config/            # Configuration management
+    ├── errors/            # Error handling
+    ├── logging/           # Logging utilities
+    └── validation/        # Validation utilities
 ```
 
 ## 10. Future Extensibility
 
 The architecture supports several extension points:
 
-1. **New Lightning Implementations**: Add new gateway implementations in the infrastructure layer
+1. **New Lightning Implementations**: Add new adapters and gateways for CLN, Eclair, etc.
 2. **Enhanced NLP**: Replace the RegexIntentParser with more sophisticated NLP
 3. **Additional Domain Data**: Expand beyond channels to payments, invoices, etc.
 4. **Advanced Health Metrics**: Enhance health criteria and analysis capabilities
 
 ## Conclusion
 
-The Lightning Network MCP Server architecture demonstrates how clean architecture and domain-driven design principles create a system that is:
+The Lightning Network MCP Server architecture demonstrates how clean architecture, SOLID principles, and domain-driven design create a system that is:
 
 - **Modular**: Components can be developed and tested independently
-- **Extensible**: New functionality can be added without disrupting existing code
+- **Extensible**: New implementations can be added without disrupting existing code
 - **Maintainable**: Clear separation of concerns simplifies understanding and changes
-- **Adaptable**: Multiple Lightning Network implementations are supported through abstractions
+- **Adaptable**: Multiple Lightning Network implementations and connection methods are supported
 
 This architecture ensures the system can grow and adapt to changing requirements while maintaining a strong foundation of domain concepts and clean separation of concerns.
