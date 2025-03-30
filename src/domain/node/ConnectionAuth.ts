@@ -1,39 +1,84 @@
 /**
- * @fileoverview Authentication interfaces for Lightning Node connections.
+ * @fileoverview Connection types and details for Lightning Node connections.
  *
- * Defines type-safe authentication parameters for different connection methods.
+ * Defines type-safe configuration for different Lightning Node implementations
+ * and connection methods.
  */
 
 /**
- * Base authentication interface for all Lightning Network connections
+ * Supported Lightning Network node implementations.
+ *
+ * Note: Currently, only LND is implemented. Other implementations
+ * are defined here for type safety but will throw an error if used.
  */
-export interface LightningNodeAuth {
-  type: 'lnd-direct' | 'lnc' | 'mock';
+export enum NodeImplementation {
+  /**
+   * Lightning Network Daemon (LND) implementation.
+   * Status: Fully implemented.
+   */
+  LND = 'lnd',
+
+  /**
+   * Core Lightning (CLN) implementation.
+   * Status: Not yet implemented.
+   * @todo Implement CLN support
+   */
+  CLN = 'cln',
+
+  /**
+   * Eclair implementation.
+   * Status: Not yet implemented.
+   * @todo Implement Eclair support
+   */
+  ECLAIR = 'eclair',
 }
 
 /**
- * Authentication parameters for LND direct connections
+ * Connection methods for Lightning Network nodes.
  */
-export interface LndAuth extends LightningNodeAuth {
-  type: 'lnd-direct';
+export enum ConnectionMethod {
+  /**
+   * gRPC connection (used with LND)
+   */
+  GRPC = 'grpc',
+
+  /**
+   * Lightning Node Connect (used with LND)
+   */
+  LNC = 'lnc',
+}
+
+/**
+ * Base interface for connection details.
+ */
+export interface ConnectionDetails {
+  /**
+   * The connection method being used.
+   */
+  method: ConnectionMethod;
+}
+
+/**
+ * Connection details for gRPC connections to LND.
+ */
+export interface LndGrpcDetails extends ConnectionDetails {
+  method: ConnectionMethod.GRPC;
+  host: string;
+  port: number | string;
   tlsCertPath: string;
   macaroonPath: string;
-  host: string;
-  port: string | number;
 }
 
 /**
- * Authentication parameters for Lightning Node Connect
+ * Connection details for LNC connections to LND.
  */
-export interface LncAuth extends LightningNodeAuth {
-  type: 'lnc';
+export interface LndLncDetails extends ConnectionDetails {
+  method: ConnectionMethod.LNC;
   connectionString: string;
   pairingPhrase?: string;
 }
 
 /**
- * Authentication parameters for mock connections (testing)
+ * Union type of all supported connection details.
  */
-export interface MockAuth extends LightningNodeAuth {
-  type: 'mock';
-}
+export type SupportedConnectionDetails = LndGrpcDetails | LndLncDetails;
