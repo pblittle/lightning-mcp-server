@@ -116,6 +116,16 @@ For examples of message style, refer to recent commits in the main branch.
 - Avoid unnecessary abstractions
 - Do not introduce new dependencies without discussion
 
+## Security Considerations
+
+When working with credentials, authentication tokens, or connection details:
+
+- Never log sensitive information directly
+- Use the existing sanitization utilities in `src/core/errors/sanitize.ts`
+- If adding new types of sensitive information, update the `SENSITIVE_FIELD_PATTERNS` array
+- Always add tests to verify proper redaction behavior
+- Consider security implications when adding new connection methods
+
 ## Questions
 
 Open a pull request or start a discussion. We're happy to support thoughtful contributions.

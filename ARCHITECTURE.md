@@ -36,6 +36,16 @@ The infrastructure layer implements connectivity to external systems, such as LN
 
 The core layer contains shared utilities and system-wide concerns. This includes environment configuration, logging, error sanitization, and schema validation. Core logic is defined in `src/core`.
 
+#### Security: Log Sanitization
+
+The system employs a pattern-based approach to redact sensitive information in logs and error messages:
+
+- Sensitive fields are identified based on common naming patterns (defined in `SENSITIVE_FIELD_PATTERNS`)
+- All connection types (LND-direct, LNC, etc.) are handled consistently
+- The sanitization system is designed to handle future connection types without code changes
+
+This approach follows the Open/Closed principle - the system is open for extension but closed for modification. When adding new connection methods, sensitive fields will be automatically redacted if they follow recognizable patterns, or new patterns can be added to the existing array of patterns.
+
 ## Modularity
 
 Each layer is independently testable. The domain layer has no external dependencies. Infrastructure depends on abstractions defined upstream. Dependencies are passed explicitly through constructors or factory methods.
