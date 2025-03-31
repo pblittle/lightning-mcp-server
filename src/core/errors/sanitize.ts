@@ -3,6 +3,40 @@
  */
 
 /**
+ * List of patterns that indicate sensitive information in field names.
+ * Grouped by category for clarity and ease of maintenance.
+ */
+const SENSITIVE_FIELD_PATTERNS = [
+  // Authentication/credential patterns
+  'password',
+  'secret',
+  'token',
+  'key',
+  'credential',
+  'auth',
+  // gRPC connection patterns (LND-direct, CLN, Eclair)
+  'cert',
+  'macaroon',
+  'tls',
+  // LNC connection patterns
+  'connectionstring',
+  'pairingphrase',
+  // Generic sensitive patterns
+  'private',
+  'apikey',
+];
+
+/**
+ * Checks if a field name contains any sensitive patterns
+ * @param fieldName - The field name to check
+ * @returns True if the field contains sensitive information
+ */
+function isSensitiveField(fieldName: string): boolean {
+  const lowercaseFieldName = fieldName.toLowerCase();
+  return SENSITIVE_FIELD_PATTERNS.some((pattern) => lowercaseFieldName.includes(pattern));
+}
+
+/**
  * Sanitize sensitive configuration data for logging
  *
  * @param config - The configuration object to sanitize
@@ -38,11 +72,8 @@ export function sanitizeConfig<T extends Record<string, any>>(config: T): T {
   const sanitizeObj = (obj: Record<string, any>): void => {
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        // Sanitize based on key names that might contain sensitive information
-        if (
-          /(?:cert|macaroon|key|secret|token|password|credential|auth)/i.test(key) &&
-          typeof obj[key] === 'string'
-        ) {
+        // Use the shared isSensitiveField function to check if the field is sensitive
+        if (isSensitiveField(key) && typeof obj[key] === 'string') {
           obj[key] = '[REDACTED]';
         } else if (typeof obj[key] === 'object' && obj[key] !== null) {
           sanitizeObj(obj[key]);
@@ -239,21 +270,9 @@ export function sanitizeForLogging(data: any): any {
 
   const sanitized = { ...data };
 
-  // List of sensitive fields to redact
-  const sensitiveFields = [
-    'macaroon',
-    'password',
-    'secret',
-    'token',
-    'key',
-    'cert',
-    'credential',
-    'auth',
-  ];
-
-  // Redact sensitive fields
+  // Redact sensitive fields using the helper function
   for (const field of Object.keys(sanitized)) {
-    if (sensitiveFields.some((sensitive) => field.toLowerCase().includes(sensitive))) {
+    if (isSensitiveField(field)) {
       sanitized[field] = '[REDACTED]';
     } else if (typeof sanitized[field] === 'object' && sanitized[field] !== null) {
       sanitized[field] = sanitizeForLogging(sanitized[field]);
