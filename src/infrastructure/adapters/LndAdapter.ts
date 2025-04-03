@@ -23,6 +23,7 @@ import {
 } from '../../domain/errors/ConnectionErrors';
 import * as lnService from 'ln-service';
 import { LndApi } from '@lightninglabs/lnc-core';
+import * as fs from 'fs';
 
 /**
  * Adapter for communicating with a Lightning Network Daemon (LND)
@@ -74,11 +75,34 @@ export class LndAdapter extends LightningNodeAdapter {
         port: details.port,
       });
 
-      return lnService.authenticatedLndGrpc({
-        cert: details.tlsCertPath,
-        macaroon: details.macaroonPath,
+      // Check if we're connecting to a Tor onion address
+      const isTorAddress = details.host.endsWith('.onion');
+      // Read the certificate and macaroon files
+      const cert = fs.readFileSync(details.tlsCertPath, 'utf8');
+      const macaroon = fs.readFileSync(details.macaroonPath).toString('hex');
+
+      const config: any = {
+        cert,
+        macaroon,
         socket: `${details.host}:${details.port}`,
-      });
+      };
+
+      // Add SOCKS proxy configuration if connecting to a Tor onion address
+      if (isTorAddress && process.env.SOCKS_PROXY_HOST && process.env.SOCKS_PROXY_PORT) {
+        logger.info('Using SOCKS proxy for Tor connection', {
+          component: 'lnd-adapter',
+          operation: 'createGrpcClient',
+          socksHost: process.env.SOCKS_PROXY_HOST,
+          socksPort: process.env.SOCKS_PROXY_PORT,
+        });
+
+        config.socksProxy = {
+          host: process.env.SOCKS_PROXY_HOST,
+          port: parseInt(process.env.SOCKS_PROXY_PORT, 10),
+        };
+      }
+
+      return lnService.authenticatedLndGrpc(config);
     } catch (error) {
       const sanitizedError = sanitizeError(error);
       logger.error('Failed to create LND gRPC connection', sanitizedError, {
@@ -233,7 +257,7 @@ export class LndAdapter extends LightningNodeAdapter {
 
         return {
           alias: info.alias,
-          pubkey: info.public_key, // Ensure we map public_key to pubkey
+          pubkey: info.public_key || '', // Ensure we map public_key to pubkey
           color: info.color,
           activeChannelsCount: info.active_channels_count,
           pendingChannelsCount: info.pending_channels_count,
@@ -284,9 +308,8 @@ export class LndAdapter extends LightningNodeAdapter {
   }
 
   /**
-   * Simulates fetching node info - for development purposes only
-   * In a production implementation, this would use the actual API
-   * @returns Simulated node info
+   * Provides simulated node information for testing and development.
+   * @returns Node information object
    * @private
    */
   private async simulateGetInfo(): Promise<any> {

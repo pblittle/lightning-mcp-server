@@ -13,6 +13,7 @@ import { NodeInfo } from '../../domain/node/NodeInfo';
 import { LightningNodeConnection } from '../../domain/node/LightningNodeConnection';
 import logger from '../../core/logging/logger';
 import { sanitizeError } from '../../core/errors/sanitize';
+import { ConnectionError } from '../../domain/errors/ConnectionErrors';
 
 /**
  * LND implementation of the Lightning Network Gateway
@@ -67,13 +68,12 @@ export class LndGateway implements LightningNetworkGateway {
         channel_point: channel.channel_point,
       }));
     } catch (error) {
-      const sanitizedError = sanitizeError(error);
-      logger.error('Error fetching channels', {
+      const sanitizedError = sanitizeError(error) || new Error('Unknown error');
+      logger.error('Error fetching channels', sanitizedError, {
         component: 'lnd-gateway',
         operation: 'getChannels',
-        error: sanitizedError.message,
       });
-      throw new Error(`Failed to fetch channels: ${sanitizedError.message}`);
+      throw new ConnectionError(`Failed to fetch channels: ${sanitizedError.message}`);
     }
   }
 
@@ -108,14 +108,13 @@ export class LndGateway implements LightningNetworkGateway {
         peersCount: 0, // Not available in getNodeInfo response
       };
     } catch (error) {
-      const sanitizedError = sanitizeError(error);
-      logger.error(`Error fetching node info for ${pubkey}`, {
+      const sanitizedError = sanitizeError(error) || new Error('Unknown error');
+      logger.error(`Error fetching node info for ${pubkey}`, sanitizedError, {
         component: 'lnd-gateway',
         operation: 'getNodeInfo',
         pubkey: pubkey,
-        error: sanitizedError.message,
       });
-      throw new Error(`Failed to fetch node info: ${sanitizedError.message}`);
+      throw new ConnectionError(`Failed to fetch node info: ${sanitizedError.message}`);
     }
   }
 
@@ -138,14 +137,13 @@ export class LndGateway implements LightningNetworkGateway {
 
       return nodeInfo.alias;
     } catch (error) {
-      const sanitizedError = sanitizeError(error);
-      logger.error(`Error fetching node alias for ${pubkey}`, {
+      const sanitizedError = sanitizeError(error) || new Error('Unknown error');
+      logger.error(`Error fetching node alias for ${pubkey}`, sanitizedError, {
         component: 'lnd-gateway',
         operation: 'getNodeAlias',
         pubkey: pubkey,
-        error: sanitizedError.message,
       });
-      throw new Error(`Failed to fetch node alias: ${sanitizedError.message}`);
+      throw new ConnectionError(`Failed to fetch node alias: ${sanitizedError.message}`);
     }
   }
 
@@ -161,7 +159,7 @@ export class LndGateway implements LightningNetworkGateway {
 
     // Check if it's a valid LND connection
     if (!rawConnection || typeof rawConnection !== 'object') {
-      throw new Error('Invalid LND connection');
+      throw new ConnectionError('Invalid LND connection');
     }
 
     return rawConnection as lnService.AuthenticatedLnd;

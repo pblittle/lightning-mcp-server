@@ -7,171 +7,55 @@
 
 declare module 'ln-service' {
   export interface AuthenticatedLnd {
-    [key: string]: any;
+    // Add any specific properties or methods if needed
   }
 
   export interface WalletInfo {
     alias: string;
-    public_key: string;
-    version: string;
+    public_key?: string;
+    color: string;
     active_channels_count: number;
+    pending_channels_count: number;
     peers_count: number;
-    block_height: number;
-    is_synced_to_chain: boolean;
-    is_testnet: boolean;
-    chains: string[];
-    [key: string]: any;
-  }
-
-  export interface ChainBalance {
-    confirmed_balance: number;
-    unconfirmed_balance: number;
-    [key: string]: any;
-  }
-
-  export interface ChannelBalance {
-    channel_balance: number;
-    pending_balance: number;
-    [key: string]: any;
   }
 
   export interface Channel {
-    id: string;
     capacity: number;
     local_balance: number;
     remote_balance: number;
-    channel_point: string;
     active: boolean;
     remote_pubkey: string;
-    commit_fee?: number;
-    commit_weight?: number;
-    fee_per_kw?: number;
-    total_satoshis_sent?: number;
-    total_satoshis_received?: number;
-    num_updates?: number;
-    pending_htlcs?: Array<unknown>;
-    csv_delay?: number;
-    private?: boolean;
-    initiator?: boolean;
-    chan_id?: string;
-    chan_status_flags?: string;
-    local_chan_reserve_sat?: number;
-    remote_chan_reserve_sat?: number;
-    static_remote_key?: boolean;
-    lifetime?: number;
-    uptime?: number;
-    close_address?: string;
-    push_amount_sat?: number;
-    thaw_height?: number;
-    [key: string]: any;
+    channel_point: string;
+    // Add other channel properties as needed
   }
 
-  export interface NodeInfo {
-    alias: string;
-    public_key: string;
-    [key: string]: any;
+  export interface GetChannelsResult {
+    channels: Channel[];
   }
 
-  export interface Peer {
-    public_key: string;
-    socket: string;
-    [key: string]: any;
+  export interface NodeInfoResult {
+    alias?: string;
+    color?: string;
+    channel_count?: number;
+    // Add other node info properties as needed
   }
 
-  export interface NetworkInfo {
-    average_channel_size: number;
-    channel_count: number;
-    max_channel_size: number;
-    min_channel_size: number;
-    node_count: number;
-    total_capacity: number;
-    [key: string]: any;
-  }
-
-  export interface ClosedChannel {
-    id: string;
-    capacity: number;
-    close_height: number;
-    [key: string]: any;
-  }
-
-  export interface PendingChannel {
-    id: string;
-    capacity: number;
-    is_opening: boolean;
-    [key: string]: any;
-  }
-
-  export interface Invoice {
-    id: string;
-    request: string;
-    tokens: number;
-    [key: string]: any;
-  }
-
-  export interface Payment {
-    id: string;
-    destination: string;
-    tokens: number;
-    [key: string]: any;
-  }
-
-  export interface PaymentRequest {
-    destination: string;
-    tokens: number;
-    description: string;
-    [key: string]: any;
-  }
-
-  // Function declarations
-  export function authenticatedLndGrpc(auth: {
+  export function authenticatedLndGrpc(args: {
     cert: string;
     macaroon: string;
     socket: string;
+    socksProxy?: {
+      host: string;
+      port: number;
+    };
   }): AuthenticatedLnd;
 
   export function getWalletInfo(args: { lnd: AuthenticatedLnd }): Promise<WalletInfo>;
 
-  export function getChainBalance(args: { lnd: AuthenticatedLnd }): Promise<ChainBalance>;
-
-  export function getChannelBalance(args: { lnd: AuthenticatedLnd }): Promise<ChannelBalance>;
-
-  export function getChannels(args: { lnd: AuthenticatedLnd }): Promise<{ channels: Channel[] }>;
-
-  export function getPeers(args: { lnd: AuthenticatedLnd }): Promise<{ peers: Peer[] }>;
-
-  export function getNetworkInfo(args: { lnd: AuthenticatedLnd }): Promise<NetworkInfo>;
-
-  export function getClosedChannels(args: {
-    lnd: AuthenticatedLnd;
-  }): Promise<{ channels: ClosedChannel[] }>;
-
-  export function getPendingChannels(args: {
-    lnd: AuthenticatedLnd;
-  }): Promise<{ pending_channels: PendingChannel[] }>;
-
-  export function getInvoices(args: { lnd: AuthenticatedLnd }): Promise<{ invoices: Invoice[] }>;
-
-  export function getPayments(args: { lnd: AuthenticatedLnd }): Promise<{ payments: Payment[] }>;
-
-  export function decodePaymentRequest(args: {
-    lnd: AuthenticatedLnd;
-    request: string;
-  }): Promise<PaymentRequest>;
-
-  export function createInvoice(args: {
-    lnd: AuthenticatedLnd;
-    tokens: number;
-    description?: string;
-  }): Promise<Invoice>;
-
-  export function payViaPaymentRequest(args: {
-    lnd: AuthenticatedLnd;
-    request: string;
-  }): Promise<Payment>;
+  export function getChannels(args: { lnd: AuthenticatedLnd }): Promise<GetChannelsResult>;
 
   export function getNodeInfo(args: {
     lnd: AuthenticatedLnd;
     public_key: string;
-  }): Promise<NodeInfo>;
+  }): Promise<NodeInfoResult>;
 }

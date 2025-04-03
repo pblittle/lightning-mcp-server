@@ -8,7 +8,7 @@
 
 const { spawn } = require('child_process');
 const path = require('path');
-const logger = require('../src/utils/logger').default;
+const logger = require('../build/src/core/logging/logger').default;
 
 /**
  * Sanitize error messages to remove sensitive information
@@ -73,8 +73,11 @@ function sanitizeErrorMessage(message) {
 // Run the server
 logger.info('Starting LND MCP server...');
 
-// Use ts-node to run the TypeScript file directly
-const serverProcess = spawn('npx', ['ts-node', path.resolve(__dirname, '../src/index.ts')], {
+// Set NODE_ENV to development if not already set
+process.env.NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Use the built JavaScript file instead of ts-node
+const serverProcess = spawn('node', [path.resolve(__dirname, '../build/src/index.js')], {
   stdio: 'inherit',
   env: process.env,
 });

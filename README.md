@@ -1,6 +1,6 @@
 # Lightning Network MCP Server
 
-The Lightning Network MCP Server allows large language model (LLM) agents—such as those running in [Goose](https://block.github.io/goose/)—to query Lightning node data using natural language. It serves as a structured backend for LLM agents by implementing the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
+The Lightning Network MCP Server allows large language model (LLM) agents—such as those running in [Goose](https://block.github.io/goose/)—to query Lightning node data using natural language. It implements the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) specification version `2025-03-26` and is fully compatible with MCP Inspector 1.7.0.
 
 The server connects to your node using gRPC or Lightning Node Connect (LNC), and returns both readable summaries and machine-readable JSON output. It is designed to be modular, testable, and extensible to support additional node types such as Core Lightning and Eclair.
 
@@ -14,13 +14,13 @@ The system interprets natural-language prompts, determines user intent, evaluate
 
 Ask in natural language:
 
-```
+```bash
 Show me my channels
 ```
 
 Get human-readable responses:
 
-```
+```bash
 Your node has 5 channels with a total capacity of 0.05000000 BTC (5,000,000 sats).
 4 channels are active and 1 is inactive.
 
@@ -83,13 +83,7 @@ More robust queries are in development across the following domains:
 
 ## Quick Start
 
-### Run with Mock Data (No Node Required)
-
-```bash
-npm install
-npm run build
-npm run mcp:mock
-```
+This provides a zero-configuration development experience using real nodes.
 
 ### Run with a Real Node (LND via gRPC or LNC)
 
@@ -99,18 +93,70 @@ cp .env.example .env
 npm run mcp:prod
 ```
 
+#### Connecting to an LND Node over Tor
+
+To connect to an LND node running as a Tor hidden service:
+
+1. Ensure Tor is installed and running on your system:
+
+   ```bash
+   # macOS (using Homebrew)
+   brew install tor
+   brew services start tor
+
+   # Ubuntu/Debian
+   sudo apt install tor
+   sudo systemctl start tor
+   ```
+
+2. Configure your `.env` file with the Tor SOCKS proxy settings:
+
+   ```bash
+   CONNECTION_TYPE=lnd-direct
+   LND_HOST=your-node-address.onion
+   LND_PORT=10009
+   LND_TLS_CERT_PATH=/path/to/tls.pem  # Use PEM format for better compatibility
+   LND_MACAROON_PATH=/path/to/admin.macaroon
+   SOCKS_PROXY_HOST=localhost
+   SOCKS_PROXY_PORT=9050
+   ```
+
+3. Make sure your TLS certificate is in PEM format (begins with `-----BEGIN CERTIFICATE-----`).
+   If you have a raw certificate, you can convert it using the extract-credentials.js script.
+
+#### Using the Credential Extraction Tool
+
+If you have an lndconnect URL (commonly used in mobile apps), you can extract the credentials using:
+
+```bash
+# Extract credentials from an lndconnect URL
+node scripts/extract-credentials.js "lndconnect://your-node.onion:10009?cert=BASE64CERT&macaroon=BASE64MACAROON"
+
+# Or set LNDCONNECT_URL in your .env file and run
+node scripts/extract-credentials.js
+```
+
+This script will:
+
+- Extract the host, port, certificate, and macaroon
+- Convert the certificate to PEM format (required for proper connection)
+- Save the files to the test/fixtures directory
+- Print the configuration to add to your .env file
+
 ## Test with MCP Inspector
 
 To test the server using the official MCP inspector:
 
 ```bash
 npm install -g @modelcontextprotocol/inspector
-npm run mcp:mock
-npx @modelcontextprotocol/inspector
+npm run build
+LOG_LEVEL=warn npx @modelcontextprotocol/inspector node scripts/inspect.js
 ```
 
 ## Compatibility
 
+- MCP Specification version `2025-03-26`
+- MCP Inspector version `1.7.0`
 - MCP agent compatibility (e.g., Goose)
 - gRPC support for direct node access
 - LNC support for secure remote access

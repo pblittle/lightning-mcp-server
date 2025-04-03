@@ -73,27 +73,11 @@ export class LightningQueryProcessor {
       // Extract the formatted text from the result
       let text = '';
       if (result.formattedResults) {
-        // Use the appropriate formatted result based on the operation
         const operation = intent.operation;
-        if (
-          (operation === 'list' && result.formattedResults.list) ||
-          (operation === 'liquidity' && result.formattedResults.liquidity) ||
-          (operation === 'details' && result.formattedResults.list) ||
-          (operation === 'summary' && result.formattedResults.list)
-        ) {
-          // Get the appropriate formatted result
-          switch (operation) {
-            case 'list':
-            case 'details':
-            case 'summary':
-              text = result.formattedResults.list || '';
-              break;
-            case 'liquidity':
-              text = result.formattedResults.liquidity || '';
-              break;
-          }
+        // Use operation-specific format if available, otherwise fallback to list
+        if (operation === 'liquidity' && result.formattedResults.liquidity) {
+          text = result.formattedResults.liquidity;
         } else if (result.formattedResults.list) {
-          // Default to list if available
           text = result.formattedResults.list;
         }
       }

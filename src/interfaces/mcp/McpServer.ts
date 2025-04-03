@@ -7,14 +7,8 @@
  * and a gateway pattern for accessing Lightning Network data.
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { Server as McpSdkServer } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  ListToolsRequestSchema,
-  CallToolRequestSchema,
-  ErrorCode,
-  McpError,
-} from '@modelcontextprotocol/sdk/types.js';
 import { LightningNodeConnection } from '../../domain/node/LightningNodeConnection';
 import { Config } from '../../core/config/index';
 import {
@@ -34,12 +28,22 @@ import { DomainHandlerRegistry } from '../../domain/handlers/DomainHandlerRegist
 import { ChannelDomainHandler } from '../../domain/handlers/ChannelDomainHandler';
 import { LightningNetworkGateway } from '../../domain/lightning/gateways/LightningNetworkGateway';
 import { LightningNetworkGatewayFactory } from '../../infrastructure/factories/LightningNetworkGatewayFactory';
+import {
+  ListToolsRequestSchema,
+  CallToolRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+  ErrorCode,
+  McpError,
+  CallToolRequest,
+  ReadResourceRequest,
+} from '@modelcontextprotocol/sdk/types.js';
 
 /**
  * MCP server for Lightning Network
  */
 export class McpServer {
-  private server: Server;
+  private server: McpSdkServer;
   private connection: LightningNodeConnection;
   private lightningController: LightningMcpController;
 
@@ -74,27 +78,23 @@ export class McpServer {
     // Create the MCP controller
     this.lightningController = new LightningMcpController(queryProcessor);
 
-    // Create the MCP server
-    this.server = new Server(
+    // Create the MCP server with explicit capabilities and protocol version
+    this.server = new McpSdkServer(
       {
         name: 'lightning-mcp-server',
         version: '1.0.0',
+        protocolVersion: '2025-03-26', // Latest protocol version
       },
       {
         capabilities: {
-          tools: {},
+          resources: {}, // Indicate we support resources
+          tools: {}, // Indicate we support tools
         },
       }
     );
 
-    // Set up request handlers
-    this.setupRequestHandlers();
-
-    // Set up error handler
-    this.server.onerror = (error) => {
-      const sanitizedError = sanitizeError(error);
-      logger.error('MCP server error', { error: { message: sanitizedError.message } });
-    };
+    // Register the queryChannels tool and resources
+    this.registerHandlers();
 
     logger.info('MCP server initialized');
   }
@@ -127,69 +127,150 @@ export class McpServer {
   }
 
   /**
-   * Set up MCP request handlers
+   * Register all MCP handlers for resources and tools
    * @private
    */
-  private setupRequestHandlers(): void {
-    // Register handler for listTools method
-    this.server.setRequestHandler(ListToolsRequestSchema, (_request) => {
-      try {
-        // Generate a request ID to track this request
-        const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+  private registerHandlers(): void {
+    this.registerResources();
+    this.registerTools();
+  }
 
-        logger.info('Handling listTools request', { requestId });
-
-        return {
-          tools: [this.lightningController.getMetadata()],
-          _meta: { requestId },
-        };
-      } catch (error) {
-        const sanitizedError = sanitizeError(error);
-        logger.error('Failed to handle listTools request', {
-          error: { message: sanitizedError.message },
-        });
-        throw new McpError(ErrorCode.InternalError, sanitizedError.message);
-      }
+  /**
+   * Register resources for the MCP server
+   * @private
+   */
+  private registerResources(): void {
+    // Register resources/list handler
+    this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+      return {
+        resources: [
+          {
+            uri: 'lightning://docs',
+            name: 'Lightning Network Documentation',
+            description: 'Documentation for using the Lightning Network MCP server',
+            mimeType: 'text/markdown',
+          },
+        ],
+      };
     });
 
-    // Register handler for calling a tool
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      try {
-        // Dispatch the tool call based on the requested tool name
-        if (request.params.name === 'queryLightning') {
-          // Type checking for arguments
-          if (
-            !request.params.arguments ||
-            typeof request.params.arguments !== 'object' ||
-            typeof request.params.arguments.query !== 'string'
-          ) {
-            throw new McpError(
-              ErrorCode.InvalidParams,
-              'Invalid query: expected a string in the query parameter'
-            );
-          }
-
-          const query = request.params.arguments.query;
-          const result = await this.lightningController.executeQuery(query);
-
-          // Convert the result to the format expected by the MCP SDK
+    // Register resources/read handler
+    this.server.setRequestHandler(
+      ReadResourceRequestSchema,
+      async (request: ReadResourceRequest) => {
+        if (request.params.uri === 'lightning://docs') {
           return {
-            content: result.content,
-            data: result.data,
-            isError: result.isError,
-          };
-        } else {
-          throw new McpError(ErrorCode.MethodNotFound, `Tool ${request.params.name} not found`);
-        }
-      } catch (error) {
-        const sanitizedError = sanitizeError(error);
-        logger.error('Tool call failed', { error: { message: sanitizedError.message } });
+            contents: [
+              {
+                uri: request.params.uri,
+                text: `# Lightning MCP Server Documentation
 
-        if (error instanceof McpError) {
-          throw error;
-        } else {
-          throw new McpError(ErrorCode.InternalError, sanitizedError.message);
+## Overview
+This server provides tools to query your Lightning Network node in natural language.
+
+## Available Tools
+- **queryChannels**: Get information about your Lightning Network channels
+
+## Available Queries
+- "Show me my channels"
+- "Show me inactive channels"
+- "Show channels with Bitrefill only"
+
+These queries will return both human-readable descriptions and structured JSON data.
+`,
+                mimeType: 'text/markdown',
+              },
+            ],
+          };
         }
+
+        // Handle unknown resources with proper error
+        throw new McpError(
+          -32601, // METHOD_NOT_FOUND
+          `Resource not found: ${request.params.uri}`,
+          {
+            metadata: {
+              attemptedUri: request.params.uri,
+              availableResources: ['lightning://docs'],
+            },
+          }
+        );
+      }
+    );
+  }
+
+  /**
+   * Register Lightning tools with the MCP server
+   * @private
+   */
+  private registerTools(): void {
+    // Register tools/list handler
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      return {
+        tools: [
+          {
+            name: 'queryChannels',
+            description: 'Query Lightning Network channels using natural language',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: {
+                  type: 'string',
+                  description: 'Natural language query about Lightning Network channels',
+                },
+              },
+              required: ['query'],
+            },
+            annotations: {
+              title: 'Query Lightning Channels',
+              readOnlyHint: true, // This is a read-only operation
+              openWorldHint: false, // Operates on a closed world (just the channels)
+            },
+          },
+        ],
+      };
+    });
+
+    // Register tools/call handler
+    this.server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest) => {
+      try {
+        // Validate tool name
+        if (request.params.name !== 'queryChannels') {
+          throw new McpError(ErrorCode.MethodNotFound, `Unsupported tool: ${request.params.name}`);
+        }
+
+        // Get query from arguments
+        const query = request.params.arguments?.query;
+
+        // Validate query parameter
+        if (!query || typeof query !== 'string') {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: 'Please provide a query about your Lightning Network channels.',
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        // Use existing controller with validated parameter
+        const result = await this.lightningController.executeQuery(query);
+
+        return {
+          content: result.content,
+          isError: result.isError,
+        };
+      } catch (error) {
+        logger.error('Tool execution failed', sanitizeError(error));
+        const sanitizedError = sanitizeError(error);
+
+        // Return error in a way that can be presented to the user
+        return {
+          content: [{ type: 'text', text: `Error: ${sanitizedError.message}` }],
+          isError: true,
+        };
       }
     });
   }

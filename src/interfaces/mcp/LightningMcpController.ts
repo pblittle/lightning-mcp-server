@@ -15,7 +15,8 @@ import { sanitizeError } from '../../core/errors/sanitize';
  */
 export interface ToolResult {
   content: Array<{ type: string; text: string }>;
-  data?: any;
+  // Using a more specific type than 'any'
+  data?: Record<string, unknown>;
   isError?: boolean;
 }
 
@@ -28,35 +29,6 @@ export class LightningMcpController {
    * @param queryProcessor The query processor to use
    */
   constructor(private readonly queryProcessor: LightningQueryProcessor) {}
-
-  /**
-   * Get metadata for the MCP tool
-   * @returns Tool metadata
-   */
-  getMetadata() {
-    return {
-      name: 'queryLightning',
-      description: 'Query Lightning Network node using natural language',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: 'Natural language query about Lightning Network',
-          },
-        },
-        required: ['query'],
-      },
-      usage: {
-        guidance: 'Ask questions about your Lightning Network node in natural language',
-        examples: [
-          'Show me all my channels',
-          'What is the health of my channels?',
-          'How is my channel liquidity distributed?',
-        ],
-      },
-    };
-  }
 
   /**
    * Execute a Lightning Network query
@@ -73,10 +45,11 @@ export class LightningMcpController {
       // Process the query
       const result = await this.queryProcessor.processQuery(query);
 
-      // Return the result
+      // Return the result with markdown formatting
       return {
         content: [{ type: 'text', text: result.text }],
-        data: result.data,
+        // Using type assertion to ensure compatibility with Record<string, unknown>
+        data: result.data as Record<string, unknown>,
       };
     } catch (error) {
       const sanitizedError = sanitizeError(error) || new Error('Unknown error');
@@ -90,7 +63,7 @@ export class LightningMcpController {
         content: [
           {
             type: 'text',
-            text: `Sorry, I couldn't process your query: ${sanitizedError.message}`,
+            text: `Error: I couldn't process your query: ${sanitizedError.message}`,
           },
         ],
         data: { error: sanitizedError.message },

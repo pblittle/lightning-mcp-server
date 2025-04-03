@@ -10,6 +10,7 @@ The architecture follows several key principles:
 
 - Clean Architecture defines the project structure.
 - Domain-Driven Design is used to model business rules.
+- SOLID principles guide implementation details:
 - Dependencies flow inward; outer layers depend on inner ones.
 - Infrastructure concerns are abstracted behind interfaces.
 - Business logic is isolated and independently testable.
@@ -45,6 +46,15 @@ The system employs a pattern-based approach to redact sensitive information in l
 - The sanitization system is designed to handle future connection types without code changes
 
 This approach follows the Open/Closed principle - the system is open for extension but closed for modification. When adding new connection methods, sensitive fields will be automatically redacted if they follow recognizable patterns, or new patterns can be added to the existing array of patterns.
+
+#### MCP Specification Compliance
+
+The system implements the MCP Specification version `2025-03-26`:
+
+- Tool definitions follow the schema defined in the specification
+- Server validates all tool inputs and outputs against the schema
+- MCP Inspector 1.7.0 compatibility is maintained
+- Schema validation occurs at startup to catch issues early
 
 ## Modularity
 
