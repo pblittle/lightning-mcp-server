@@ -7,9 +7,11 @@
 import { LndAdapter } from './LndAdapter';
 import { ConnectionMethod, LndGrpcDetails, LndLncDetails } from '../../domain/node/ConnectionAuth';
 import * as lnService from 'ln-service';
+import * as fs from 'fs';
 
-// Mock ln-service
+// Mock ln-service and fs modules
 jest.mock('ln-service');
+jest.mock('fs');
 
 describe('LndAdapter', () => {
   // Test gRPC connection
@@ -26,6 +28,16 @@ describe('LndAdapter', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
+      // Mock filesystem operations
+      (fs.readFileSync as jest.Mock).mockImplementation((path: string) => {
+        if (path === grpcDetails.tlsCertPath) {
+          return '-----BEGIN CERTIFICATE-----\nMOCK_CERTIFICATE_DATA\n-----END CERTIFICATE-----';
+        } else if (path === grpcDetails.macaroonPath) {
+          // For macaroon, return a Buffer that can be converted to hex
+          return Buffer.from('MOCK_MACAROON_DATA');
+        }
+        throw new Error(`ENOENT: no such file or directory, open '${path}'`);
+      });
       adapter = new LndAdapter(grpcDetails);
     });
 
@@ -36,10 +48,16 @@ describe('LndAdapter', () => {
       // Execute
       const connection = adapter.getConnection();
 
+      // Prepare expected values for verification
+
+      const expectedCert =
+        '-----BEGIN CERTIFICATE-----\nMOCK_CERTIFICATE_DATA\n-----END CERTIFICATE-----';
+      const expectedMacaroon = Buffer.from('MOCK_MACAROON_DATA').toString('hex');
+
       // Verify
       expect(lnService.authenticatedLndGrpc).toHaveBeenCalledWith({
-        cert: grpcDetails.tlsCertPath,
-        macaroon: grpcDetails.macaroonPath,
+        cert: expectedCert,
+        macaroon: expectedMacaroon,
         socket: `${grpcDetails.host}:${grpcDetails.port}`,
       });
       expect(connection).toBeDefined();

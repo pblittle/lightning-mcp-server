@@ -17,8 +17,6 @@
     "mcp:dev": "NODE_ENV=development node run.js",
     "mcp:test": "NODE_ENV=test node run.js",
     "mcp:prod": "NODE_ENV=production node run.js",
-    "mcp:mock": "npm run build && node scripts/mock-server.js",
-    "mcp:inspector-test": "node scripts/mcp-inspector-test.js",
     "test:lnc": "npm run build && node test/lnc-connection-test.js",
     "prepare": "npm run compile",
     "clean": "gts clean",
@@ -50,7 +48,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@lightninglabs/lnc-core": "^0.3.3-alpha",
-    "@modelcontextprotocol/sdk": "latest",
+    "@modelcontextprotocol/sdk": "^1.8.0",
     "dotenv": "^16.3.1",
     "ln-service": "^57.23.1",
     "zod": "^3.24.2"

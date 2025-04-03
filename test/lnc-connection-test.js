@@ -19,8 +19,8 @@
 require('dotenv').config();
 
 // Import required modules
-const { LncClient } = require('../dist/infrastructure/lnc/LncClient');
-const { LncGateway } = require('../dist/infrastructure/lnc/LncGateway');
+const { LncClient } = require('../build/infrastructure/lnc/LncClient');
+const { LncGateway } = require('../build/infrastructure/lnc/LncGateway');
 
 // ANSI color codes for terminal output
 const colors = {

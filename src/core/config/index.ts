@@ -1,5 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import * as path from 'path';
+import { existsSync } from 'fs';
 import logger from '../logging/logger';
 import { sanitizeErrorMessage, sanitizeConfig } from '../errors/sanitize';
 import { loadEnvironment } from './environment';
@@ -66,43 +65,6 @@ export interface Config {
 }
 
 /**
- * Sets up mock LND environment when using mock connection type
- * Creates necessary certificate and macaroon files for testing
- */
-function setupMockInfrastructure(): void {
-  // Only set up mock infrastructure when CONNECTION_TYPE is 'mock'
-  if (process.env.CONNECTION_TYPE === 'mock') {
-    // Define paths for mock files
-    const mockDir = path.resolve(process.cwd(), 'mock');
-    const mockCertPath = path.resolve(mockDir, 'mock-cert.pem');
-    const mockMacaroonPath = path.resolve(mockDir, 'mock-macaroon');
-
-    // Create mock directory if it doesn't exist
-    if (!existsSync(mockDir)) {
-      mkdirSync(mockDir, { recursive: true });
-    }
-
-    // Create mock certificate if it doesn't exist
-    if (!existsSync(mockCertPath)) {
-      writeFileSync(mockCertPath, 'MOCK TLS CERTIFICATE');
-      logger.debug(`Created mock TLS certificate at ${mockCertPath}`);
-    }
-
-    // Create mock macaroon if it doesn't exist
-    if (!existsSync(mockMacaroonPath)) {
-      writeFileSync(mockMacaroonPath, 'MOCK MACAROON');
-      logger.debug(`Created mock macaroon at ${mockMacaroonPath}`);
-    }
-
-    // Set environment variables to use mock files
-    process.env.LND_TLS_CERT_PATH = mockCertPath;
-    process.env.LND_MACAROON_PATH = mockMacaroonPath;
-
-    logger.info('Using mock LND mode with generated certificate and macaroon');
-  }
-}
-
-/**
  * Validate required configuration values
  */
 function validateConfig(
@@ -118,15 +80,13 @@ function validateConfig(
       throw new Error('Missing required LND configuration (tlsCertPath or macaroonPath)');
     }
 
-    // Skip file existence check for mock mode in tests
-    if (process.env.CONNECTION_TYPE !== 'mock' || process.env.NODE_ENV !== 'test') {
-      if (!existsSync(tlsCertPath)) {
-        throw new Error(`TLS certificate file not found at: ${tlsCertPath}`);
-      }
+    // Always check if files exist
+    if (!existsSync(tlsCertPath)) {
+      throw new Error(`TLS certificate file not found at: ${tlsCertPath}`);
+    }
 
-      if (!existsSync(macaroonPath)) {
-        throw new Error(`Macaroon file not found at: ${macaroonPath}`);
-      }
+    if (!existsSync(macaroonPath)) {
+      throw new Error(`Macaroon file not found at: ${macaroonPath}`);
     }
   }
 
@@ -161,16 +121,16 @@ export function getConfig(): Config {
       (process.env.NODE_IMPLEMENTATION as NodeImplementation) || NodeImplementation.LND;
 
     let connectionMethod: ConnectionMethod;
-    // Map old connection types to new architecture
+    // Map connection types to architecture
     if (process.env.CONNECTION_TYPE === 'lnd-direct') {
       connectionMethod = ConnectionMethod.GRPC;
     } else if (process.env.CONNECTION_TYPE === 'lnc') {
       connectionMethod = ConnectionMethod.LNC;
     } else if (process.env.CONNECTION_TYPE === 'mock') {
-      // Mock uses GRPC connection method with mock files
-      connectionMethod = ConnectionMethod.GRPC;
-      // Set up mock infrastructure
-      setupMockInfrastructure();
+      // Mock mode has been removed
+      throw new Error(
+        'Mock mode has been removed. Use lnd-direct or lnc with a real Lightning node.'
+      );
     } else {
       // Default to gRPC
       connectionMethod = ConnectionMethod.GRPC;
