@@ -14,9 +14,9 @@ import { sanitizeError } from '../../core/errors/sanitize';
 import { ChannelQueryResult } from '../../domain/handlers/ChannelDomainHandler';
 
 /**
- * Response from a Lightning Network query
+ * Response from a Lightning Network query (internal type)
  */
-export interface QueryResponse {
+interface QueryResponse {
   text: string;
   data: ChannelQueryResult | { error: string };
   intent: EnhancedIntent;
