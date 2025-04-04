@@ -82,11 +82,11 @@ function validateConfig(
 
     // Always check if files exist
     if (!existsSync(tlsCertPath)) {
-      throw new Error(`TLS certificate file not found at: ${tlsCertPath}`);
+      throw new Error('TLS certificate file not found');
     }
 
     if (!existsSync(macaroonPath)) {
-      throw new Error(`Macaroon file not found at: ${macaroonPath}`);
+      throw new Error('Macaroon file not found');
     }
   }
 
@@ -100,13 +100,13 @@ function validateConfig(
   // Validate port numbers
   const port = parseInt(process.env.PORT || '', 10);
   if (isNaN(port) || port <= 0 || port > 65535) {
-    throw new Error(`Invalid server port: ${process.env.PORT}`);
+    throw new Error('Invalid server port');
   }
 
   if (process.env.LND_PORT) {
     const lndPort = parseInt(process.env.LND_PORT, 10);
     if (isNaN(lndPort) || lndPort <= 0 || lndPort > 65535) {
-      throw new Error(`Invalid LND port: ${process.env.LND_PORT}`);
+      throw new Error('Invalid LND port');
     }
   }
 }

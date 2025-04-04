@@ -124,8 +124,6 @@ describe('Configuration', () => {
       expect(logger.error).toHaveBeenCalled();
     });
 
-    // Test removed as mock mode is no longer supported
-
     test('validates port numbers', () => {
       // Arrange
       process.env.CONNECTION_TYPE = 'lnd-direct';
