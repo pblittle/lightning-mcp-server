@@ -45,6 +45,7 @@ export type ChannelSummary = z.infer<typeof ChannelSummarySchema>;
 export type ChannelQueryResult = z.infer<typeof ChannelQueryResultSchema>;
 
 /**
+ * @internal
  * Channel Query Response.
  *
  * MCP response format for channel queries, combining human-readable

@@ -10,8 +10,9 @@ import { formatSatoshis, formatSatsToBtc } from '../../../core/utils/format_bitc
 
 /**
  * Schema for validating capacity values
+ * @internal
  */
-export const CapacitySchema = z.number().positive();
+const CapacitySchema = z.number().positive();
 
 /**
  * Capacity value object to represent Lightning channel capacity.

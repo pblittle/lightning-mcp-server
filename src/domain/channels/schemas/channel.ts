@@ -9,8 +9,9 @@ import { z } from 'zod';
 
 /**
  * Schema for raw channel data
+ * @internal Used only within schemas
  */
-export const RawChannelSchema = z.object({
+const RawChannelSchema = z.object({
   capacity: z.number(),
   local_balance: z.number(),
   remote_balance: z.number(),
@@ -26,33 +27,14 @@ export const RawChannelSchema = z.object({
     .optional(),
 });
 
-/**
- * Schema for channel parameters
- */
-export const ChannelParamsSchema = z.object({
-  capacity: z.number().positive(),
-  localBalance: z.number().nonnegative(),
-  remoteBalance: z.number().nonnegative(),
-  active: z.boolean(),
-  remotePubkey: z.string(),
-  channelPoint: z.string(),
-  remoteAlias: z.string().optional(),
-});
+// Channel parameters are defined directly in Channel.class.ts
 
 /**
  * Schema for channel entity (for backwards compatibility)
  */
 export const ChannelSchema = RawChannelSchema;
 
-/**
- * Type for raw channel data
- */
-export type RawChannel = z.infer<typeof RawChannelSchema>;
-
-/**
- * Type for channel parameters
- */
-export type ChannelParams = z.infer<typeof ChannelParamsSchema>;
+// Types are inferred directly where needed
 
 /**
  * Type for channel data structure

@@ -11,8 +11,9 @@ import { Balance } from './Balance';
 
 /**
  * Schema for validating health criteria values
+ * @internal
  */
-export const HealthCriteriaSchema = z
+const HealthCriteriaSchema = z
   .object({
     minLocalRatio: z.number().min(0).max(1),
     maxLocalRatio: z.number().min(0).max(1),

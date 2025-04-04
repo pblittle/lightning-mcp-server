@@ -11,8 +11,9 @@ import { formatSatoshis } from '../../../core/utils/format_bitcoin';
 
 /**
  * Schema for validating balance values
+ * @internal
  */
-export const BalanceSchema = z.number().nonnegative();
+const BalanceSchema = z.number().nonnegative();
 
 /**
  * Balance value object to represent Lightning channel balances.
