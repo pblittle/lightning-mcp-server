@@ -155,7 +155,7 @@ export class SensitivePatterns {
       // Base64 encoded data (common for certificates and credentials)
       base64Data: /[a-zA-Z0-9+/]{40,}={0,2}/,
       // JSON stringified objects that might contain credentials
-      jsonObject: /{(\s*"[^"]+"\s*:\s*"[^"]+"\s*,?)+}/,
+      jsonObject: /{(\s*"[^"]+"\s*:\s*"[^"]+"\s*(,\s*"[^"]+"\s*:\s*"[^"]+"\s*)*)}/,
     };
   }
 
