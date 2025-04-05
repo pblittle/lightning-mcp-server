@@ -132,6 +132,19 @@ describe('SensitivePatterns', () => {
       expect('SECRET=mysecretvalue').toMatch(patterns.secretEnv);
       expect('SECRET = mysecretvalue').toMatch(patterns.secretEnv);
     });
+
+    it('should match JSON objects with credentials efficiently', () => {
+      const patterns = SensitivePatterns.getGenericPatterns();
+      // Test basic functionality
+      expect('{"key":"value"}').toMatch(patterns.jsonObject);
+      expect('{"api_key":"abc123","secret":"xyz789"}').toMatch(patterns.jsonObject);
+      // Test with whitespace variations
+      expect('{ "password" : "secret123" }').toMatch(patterns.jsonObject);
+      // Test performance with a more complex case
+      const start = performance.now();
+      patterns.jsonObject.test('{"a":"1","b":"2","c":"3","d":"4","e":"5","f":"6"}');
+      expect(performance.now() - start).toBeLessThan(50); // Should complete quickly
+    });
   });
 
   describe('getAllPatterns', () => {
